@@ -309,6 +309,73 @@ final class BookletMakerViewModelTests: XCTestCase {
         XCTAssertNil(viewModel.errorMessage)
     }
 
+    /// #468: switching the document mid-export invalidates the job without
+    /// starting a newer one. The unwinding worker must reset the busy flags,
+    /// otherwise the UI stays stuck on "Cancel Export" forever.
+    func testDocumentSwitchDuringExportResetsBusyState() async throws {
+        let renderer = ControlledRenderer()
+        let viewModel = BookletMakerViewModel(renderer: renderer)
+
+        var releaseA: CheckedContinuation<Void, Never>?
+        renderer.onRender = { _ in
+            await withCheckedContinuation { releaseA = $0 }
+            if Task.isCancelled { throw CancellationError() }
+            return URL(fileURLWithPath: "/dev/null")
+        }
+
+        let outputA = FileManager.default.temporaryDirectory
+            .appendingPathComponent("switch-a-\(UUID().uuidString).pdf")
+        defer { try? FileManager.default.removeItem(at: outputA) }
+
+        let exportTask = Task { await viewModel.export(to: outputA) }
+        while renderer.calls.isEmpty { await Task.yield() }
+        XCTAssertTrue(viewModel.isRendering)
+
+        // Loading another document (a missing file is fine — the load itself
+        // fails, but it still cancels and invalidates the in-flight export).
+        let missingURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("missing-\(UUID().uuidString).pdf")
+        await viewModel.loadPDF(missingURL)
+
+        releaseA?.resume()
+        await exportTask.value
+
+        XCTAssertFalse(viewModel.isRendering)
+        XCTAssertFalse(viewModel.isCancelling)
+        XCTAssertFalse(viewModel.isBusy)
+        XCTAssertTrue(viewModel.canExportBooklet)
+    }
+
+    /// Same regression for the Clear path (#468).
+    func testClearDuringExportResetsBusyState() async throws {
+        let renderer = ControlledRenderer()
+        let viewModel = BookletMakerViewModel(renderer: renderer)
+
+        var releaseA: CheckedContinuation<Void, Never>?
+        renderer.onRender = { _ in
+            await withCheckedContinuation { releaseA = $0 }
+            if Task.isCancelled { throw CancellationError() }
+            return URL(fileURLWithPath: "/dev/null")
+        }
+
+        let outputA = FileManager.default.temporaryDirectory
+            .appendingPathComponent("clear-a-\(UUID().uuidString).pdf")
+        defer { try? FileManager.default.removeItem(at: outputA) }
+
+        let exportTask = Task { await viewModel.export(to: outputA) }
+        while renderer.calls.isEmpty { await Task.yield() }
+        XCTAssertTrue(viewModel.isRendering)
+
+        viewModel.clear()
+
+        releaseA?.resume()
+        await exportTask.value
+
+        XCTAssertFalse(viewModel.isRendering)
+        XCTAssertFalse(viewModel.isBusy)
+        XCTAssertTrue(viewModel.currentDocument.isDemo)
+    }
+
     func testExportFailureSurfacesErrorAndClearsBusyState() async throws {
         let renderer = ControlledRenderer()
         let viewModel = BookletMakerViewModel(renderer: renderer)

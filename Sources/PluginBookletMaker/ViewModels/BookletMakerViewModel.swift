@@ -404,7 +404,10 @@ final class BookletMakerViewModel: ObservableObject, SuperLog {
             let result = try await task.value
             renderTask = nil
 
-            guard activeExportJobID == jobID else { return }
+            guard activeExportJobID == jobID else {
+                finishInvalidatedJob()
+                return
+            }
             if Task.isCancelled || isCancelling {
                 // This job was cancelled; clean up its own state. A newer
                 // job is never touched because it would own the active ID.
@@ -421,12 +424,18 @@ final class BookletMakerViewModel: ObservableObject, SuperLog {
             startThumbnailPreparation(for: result, jobID: jobID)
         } catch is CancellationError {
             renderTask = nil
-            guard activeExportJobID == jobID else { return }
+            guard activeExportJobID == jobID else {
+                finishInvalidatedJob()
+                return
+            }
             isRendering = false
             isCancelling = false
         } catch {
             renderTask = nil
-            guard activeExportJobID == jobID else { return }
+            guard activeExportJobID == jobID else {
+                finishInvalidatedJob()
+                return
+            }
             errorMessage = (error as? LocalizedError)?.errorDescription
                 ?? error.localizedDescription
             isRendering = false
@@ -472,7 +481,10 @@ final class BookletMakerViewModel: ObservableObject, SuperLog {
             let urls = try await task.value
             splitTask = nil
 
-            guard activeExportJobID == jobID else { return }
+            guard activeExportJobID == jobID else {
+                finishInvalidatedJob()
+                return
+            }
             if Task.isCancelled || isCancelling {
                 isRendering = false
                 isCancelling = false
@@ -484,12 +496,18 @@ final class BookletMakerViewModel: ObservableObject, SuperLog {
             Self.logger.info("\(Self.t)Split export complete: \(urls.count) files")
         } catch is CancellationError {
             splitTask = nil
-            guard activeExportJobID == jobID else { return }
+            guard activeExportJobID == jobID else {
+                finishInvalidatedJob()
+                return
+            }
             isRendering = false
             isCancelling = false
         } catch {
             splitTask = nil
-            guard activeExportJobID == jobID else { return }
+            guard activeExportJobID == jobID else {
+                finishInvalidatedJob()
+                return
+            }
             errorMessage = (error as? LocalizedError)?.errorDescription
                 ?? error.localizedDescription
             isRendering = false
@@ -533,7 +551,10 @@ final class BookletMakerViewModel: ObservableObject, SuperLog {
             let result = try await task.value
             mergeTask = nil
 
-            guard activeExportJobID == jobID else { return }
+            guard activeExportJobID == jobID else {
+                finishInvalidatedJob()
+                return
+            }
             if Task.isCancelled || isCancelling {
                 isRendering = false
                 isCancelling = false
@@ -545,12 +566,18 @@ final class BookletMakerViewModel: ObservableObject, SuperLog {
             Self.logger.info("\(Self.t)Merge export complete: \(result.lastPathComponent)")
         } catch is CancellationError {
             mergeTask = nil
-            guard activeExportJobID == jobID else { return }
+            guard activeExportJobID == jobID else {
+                finishInvalidatedJob()
+                return
+            }
             isRendering = false
             isCancelling = false
         } catch {
             mergeTask = nil
-            guard activeExportJobID == jobID else { return }
+            guard activeExportJobID == jobID else {
+                finishInvalidatedJob()
+                return
+            }
             errorMessage = (error as? LocalizedError)?.errorDescription
                 ?? error.localizedDescription
             isRendering = false
@@ -662,6 +689,18 @@ final class BookletMakerViewModel: ObservableObject, SuperLog {
         mergeTask = nil
         thumbnailTask?.cancel()
         thumbnailTask = nil
+        isCancelling = false
+    }
+
+    /// 收尾一个 ID 已被作废的导出 Job。
+    ///
+    /// 文档切换与清空只取消 worker 并把 `activeExportJobID` 置 nil，忙碌
+    /// 标记的复位交给回卷的旧 worker：若期间没有新导出接管（ID 仍为
+    /// nil），这里复位忙碌状态，避免 UI 永久卡在「取消导出」上；若已有
+    /// 新 Job 安装了自己的 ID，则一切状态归它所有，此处不得触碰（#468）。
+    private func finishInvalidatedJob() {
+        guard activeExportJobID == nil else { return }
+        isRendering = false
         isCancelling = false
     }
 
