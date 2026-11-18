@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
     name: "LumiPluginBookletMaker",
     defaultLocalization: "en",
-    platforms: [.macOS(.v14), .iOS(.v17)],
+    platforms: [.macOS(.v14), .iOS(.v17), .visionOS(.v2)],
     products: [
         // 纯领域逻辑：纸张与折页布局、拆分计划。不依赖 Kernel / Providers / SwiftUI。
         .library(

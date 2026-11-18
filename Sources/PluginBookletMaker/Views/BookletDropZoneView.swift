@@ -28,7 +28,8 @@ struct BookletDropZoneView: View {
     @ObservedObject var viewModel: BookletMakerViewModel
 
     @State private var isTargeted: Bool = false
-    #if os(iOS)
+    // visionOS 与 iOS 一样走 fileImporter（selectPDFFile 的非 macOS 分支）。
+    #if os(iOS) || os(visionOS)
     @State private var isPresentingImporter = false
     #endif
 
@@ -69,7 +70,7 @@ struct BookletDropZoneView: View {
         .onDrop(of: [.fileURL], isTargeted: $isTargeted) { providers in
             handleDrop(providers: providers)
         }
-        #if os(iOS)
+        #if os(iOS) || os(visionOS)
         .fileImporter(isPresented: $isPresentingImporter, allowedContentTypes: [.pdf]) { result in
             if case .success(let url) = result {
                 Task { await viewModel.loadPDF(url) }
