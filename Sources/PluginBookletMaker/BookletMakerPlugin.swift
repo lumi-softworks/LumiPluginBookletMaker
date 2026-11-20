@@ -190,6 +190,7 @@ public final class BookletMakerPlugin: SuperPlugin, PluginDataMigrating, SuperLo
                             },
                             ToolbarItem(
                                 id: "\(self.id).toolTabs",
+                                title: BookletLocalization.string("PDF Tools"),
                                 placement: .center,
                                 category: .design,
                                 order: 210
