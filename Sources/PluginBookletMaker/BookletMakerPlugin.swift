@@ -188,6 +188,14 @@ public final class BookletMakerPlugin: SuperPlugin, PluginDataMigrating, SuperLo
                             ) {
                                 BookletMakerToolbarTitleView(viewModel: self.sharedViewModel)
                             },
+                            ToolbarItem(
+                                id: "\(self.id).toolTabs",
+                                placement: .center,
+                                category: .design,
+                                order: 210
+                            ) {
+                                BookletMakerToolbarToolTabsView(viewModel: self.sharedViewModel)
+                            },
                         ])
                     } else {
                         toolbar?.setVisibleCategories(Set(ToolbarItemCategory.allCases))
@@ -196,7 +204,7 @@ public final class BookletMakerPlugin: SuperPlugin, PluginDataMigrating, SuperLo
                         railView?.setVisibleCategories(Set(RailViewCategory.allCases))
                         rootView?.setRailViewVisible(railView?.hasVisibleTabs ?? false)
                         railView?.deactivateWidthProfile(ownerID: pluginID)
-                        toolbar?.removeToolbarItems(ids: ["\(self.id).title"])
+                        toolbar?.removeToolbarItems(ids: ["\(self.id).title", "\(self.id).toolTabs"])
                     }
                 },
             ])
@@ -303,7 +311,7 @@ public final class BookletMakerPlugin: SuperPlugin, PluginDataMigrating, SuperLo
             railView?.setVisibleCategories(Set(RailViewCategory.allCases))
             kernel.resolveProvider((any RootViewProviding).self)?.setRailViewVisible(railView?.hasVisibleTabs ?? false)
         }
-        kernel.resolveProvider((any ToolbarProviding).self)?.removeToolbarItems(ids: ["\(id).title"])
+        kernel.resolveProvider((any ToolbarProviding).self)?.removeToolbarItems(ids: ["\(id).title", "\(id).toolTabs"])
         BookletMakerRuntimeBridge.directoryURL = nil
     }
 
