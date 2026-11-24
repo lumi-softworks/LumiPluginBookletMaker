@@ -6,6 +6,7 @@ import os
 import ProviderActivityBar
 import ProviderContentView
 import ProviderDocsView
+import ProviderMobileTabBar
 import ProviderRailView
 import ProviderRootView
 import ProviderStorage
@@ -63,6 +64,11 @@ public final class BookletMakerPlugin: SuperPlugin, PluginDataMigrating, SuperLo
     /// BookletMakerMainView（内容区）共享同一份配置状态，
     /// 避免"在侧边栏改了设置但内容区没同步"的问题。
     private let sharedViewModel = BookletMakerViewModel()
+
+    #if os(iOS)
+    /// 移动端会话。与桌面共享同一个 `sharedViewModel`，避免两套文档状态。
+    private lazy var mobileFeature = BookletMakerMobileFeature(viewModel: sharedViewModel)
+    #endif
 
     public var name: String { BookletLocalization.string("Booklet Maker") }
 
@@ -210,6 +216,46 @@ public final class BookletMakerPlugin: SuperPlugin, PluginDataMigrating, SuperLo
                 },
             ])
         }
+
+        // iOS 宿主注册了移动标签注册表时，插件自行贡献整页 UI；
+        // macOS 宿主没有该注册表，这里自动变成 no-op。
+        try contributeMobileTab(to: kernel)
+    }
+
+    public func onEnable(kernel: KernelCoreContainer) async throws {
+        try contributeMobileTab(to: kernel)
+    }
+
+    /// 把移动端整页贡献到宿主底部标签栏。
+    ///
+    /// 页面内部自带 `NavigationStack`，所以导航栏贡献由页面自己挂载；
+    /// 这里只把页面和宿主注入的导航栏能力接通。
+    private func contributeMobileTab(to kernel: KernelCoreContainer) throws {
+        #if os(iOS)
+        guard let tabs = kernel.resolveProvider((any MobileTabBarProviding).self) else { return }
+        let ownerID = id
+        try kernel.trackContribution {
+            tabs.removeItems(ownedBy: ownerID)
+        }
+        let feature = mobileFeature
+        let navigationBar = kernel.resolveProvider((any IOSNavigationBarProviding).self)
+        tabs.addItems([
+            MobileTabBarItem(
+                id: "\(id).mobile",
+                title: name,
+                systemImage: "doc.on.doc",
+                order: order,
+                ownerPluginID: id
+            ) {
+                AnyView(
+                    BookletMakerMobilePage(
+                        feature: feature,
+                        navigationBar: navigationBar
+                    )
+                )
+            },
+        ])
+        #endif
     }
 
     // MARK: - Save Panel
@@ -313,6 +359,9 @@ public final class BookletMakerPlugin: SuperPlugin, PluginDataMigrating, SuperLo
             kernel.resolveProvider((any RootViewProviding).self)?.setRailViewVisible(railView?.hasVisibleTabs ?? false)
         }
         kernel.resolveProvider((any ToolbarProviding).self)?.removeToolbarItems(ids: ["\(id).title", "\(id).toolTabs"])
+        #if os(iOS)
+        kernel.resolveProvider((any MobileTabBarProviding).self)?.removeItems(ownedBy: id)
+        #endif
         BookletMakerRuntimeBridge.directoryURL = nil
     }
 

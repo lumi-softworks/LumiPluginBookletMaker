@@ -55,8 +55,12 @@ public final class BookletMakerMobileFeature: ObservableObject {
         }
     }
 
-    public init() {
-        let viewModel = BookletMakerViewModel()
+    public convenience init() {
+        self.init(viewModel: BookletMakerViewModel())
+    }
+
+    /// 宿主插件持有同一个 ViewModel 时注入，避免移动端与插件各建一份会话状态。
+    init(viewModel: BookletMakerViewModel) {
         self.viewModel = viewModel
         workspace = MobileWorkspaceState()
         documentStore = MobileDocumentStore()
