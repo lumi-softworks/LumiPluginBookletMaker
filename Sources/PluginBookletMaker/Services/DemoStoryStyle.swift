@@ -105,7 +105,11 @@ struct DemoStoryRGB: Sendable {
     }
 
     func color(alpha: CGFloat = 1) -> DemoStoryColor {
+        #if canImport(AppKit)
         DemoStoryColor(srgbRed: red, green: green, blue: blue, alpha: alpha)
+        #else
+        DemoStoryColor(red: red, green: green, blue: blue, alpha: alpha)
+        #endif
     }
 }
 
