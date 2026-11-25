@@ -57,11 +57,11 @@ final class BookletDocumentServicesTests: XCTestCase {
     func testDemoDocumentPageSizeIsTheDeclaredOne() throws {
         let demo = try DemoPDFProvider.makeDocument()
 
-        XCTAssertEqual(demo.info.firstPageSize, CGSize(width: 595, height: 842))
+        XCTAssertEqual(demo.info.firstPageSize, CGSize(width: 420, height: 595))
         let document = try XCTUnwrap(PDFDocument(url: demo.url))
         let bounds = try XCTUnwrap(document.page(at: 1)).bounds(for: .mediaBox)
-        XCTAssertEqual(bounds.width, 595, accuracy: 1)
-        XCTAssertEqual(bounds.height, 842, accuracy: 1)
+        XCTAssertEqual(bounds.width, 420, accuracy: 1)
+        XCTAssertEqual(bounds.height, 595, accuracy: 1)
     }
 
     func testDemoDocumentIsActuallyDrawn() throws {
@@ -121,8 +121,8 @@ final class BookletDocumentServicesTests: XCTestCase {
         let info = try await PDFInspector().inspect(demo.url)
 
         XCTAssertEqual(info.pageCount, SampleStory.pageCount)
-        XCTAssertEqual(info.firstPageSize.width, 595, accuracy: 1)
-        XCTAssertEqual(info.firstPageSize.height, 842, accuracy: 1)
+        XCTAssertEqual(info.firstPageSize.width, 420, accuracy: 1)
+        XCTAssertEqual(info.firstPageSize.height, 595, accuracy: 1)
     }
 
     // MARK: - Thumbnails

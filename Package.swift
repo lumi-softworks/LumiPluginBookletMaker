@@ -48,7 +48,9 @@ let package = Package(
             path: "Sources/PluginBookletMaker",
             resources: [
                 // Resources/ 在仓库根，与 Sources/ 平级；相对 target 目录需上溯两级。
-                .process("../../Resources/Localizable.xcstrings")
+                .process("../../Resources/Localizable.xcstrings"),
+                // 演示绘本插画；整目录拷贝，运行时按 DemoStory/<name>.jpg 读取。
+                .copy("../../Resources/DemoStory"),
             ]
         ),
         .testTarget(

@@ -119,14 +119,64 @@ final class BookletModelsTests: XCTestCase {
 
     func testEverySampleStoryPageHasDistinctContent() {
         let titles = SampleStory.pages.map(\.title)
-        let icons = SampleStory.pages.map(\.icon)
+        let images = SampleStory.pages.map(\.imageName)
         XCTAssertEqual(Set(titles).count, titles.count, "Page titles must be distinguishable")
-        XCTAssertEqual(Set(icons).count, icons.count, "Page icons must be distinguishable")
+        XCTAssertEqual(Set(images).count, images.count, "Each page needs its own illustration")
         for page in SampleStory.pages {
             XCTAssertFalse(page.title.isEmpty)
             XCTAssertFalse(page.body.isEmpty)
-            XCTAssertFalse(page.icon.isEmpty)
+            XCTAssertFalse(page.imageName.isEmpty)
         }
+    }
+
+    func testStoryOpensWithACoverAndEndsWithTheOriginalText() {
+        XCTAssertEqual(SampleStory.pages.first?.kind, .cover)
+        XCTAssertEqual(SampleStory.pages.last?.kind, .colophon)
+        XCTAssertEqual(SampleStory.pages.filter { $0.kind == .cover }.count, 1)
+        XCTAssertEqual(SampleStory.pages.filter { $0.kind == .colophon }.count, 1)
+        XCTAssertEqual(
+            SampleStory.pages.filter { $0.kind == .story }.count,
+            SampleStory.pageCount - 2
+        )
+    }
+
+    func testEveryIllustrationIsBundled() {
+        for page in SampleStory.pages {
+            XCTAssertNotNil(
+                DemoStoryAssets.url(named: page.imageName),
+                "Missing DemoStory/\(page.imageName).jpg"
+            )
+        }
+    }
+
+    func testCoverIllustrationIsDecodable() throws {
+        let cover = try XCTUnwrap(SampleStory.pages.first)
+        let image = try XCTUnwrap(
+            DemoStoryAssets.image(named: cover.imageName),
+            "ImageIO must be able to decode the bundled cover"
+        )
+        XCTAssertGreaterThan(image.width, 0)
+        XCTAssertGreaterThan(image.height, 0)
+    }
+
+    func testCoverAndColophonCarryTheirExtraCopy() throws {
+        let cover = try XCTUnwrap(SampleStory.pages.first)
+        let colophon = try XCTUnwrap(SampleStory.pages.last)
+
+        XCTAssertNil(cover.source)
+        XCTAssertNil(cover.note)
+        XCTAssertNotNil(colophon.source)
+        XCTAssertNotNil(colophon.note)
+        XCTAssertTrue(colophon.source?.contains("宋史") == true)
+    }
+
+    func testDemoPageIsA5Portrait() {
+        XCTAssertEqual(DemoStoryStyle.pageSize, CGSize(width: 420, height: 595))
+        XCTAssertLessThan(DemoStoryStyle.pageSize.width, DemoStoryStyle.pageSize.height)
+        XCTAssertEqual(
+            DemoStoryStyle.dividerY,
+            DemoStoryStyle.pageSize.height - DemoStoryStyle.artHeight
+        )
     }
 
     // MARK: - CurrentPDFDocument
