@@ -46,65 +46,81 @@ struct FlipBookView: View {
 
     var body: some View {
         GeometryReader { geo in
+            #if os(macOS)
+            let bottomControlsHeight: CGFloat = 0
+            #else
+            let bottomControlsHeight: CGFloat = spreads.count > 1 ? 34 : 0
+            #endif
+
             let pageHeight = min(
-                max(geo.size.height, 0),
+                max(geo.size.height - bottomControlsHeight, 0),
                 geo.size.width / max(document.pageAspectRatio * 2, 0.01)
             )
             let pageWidth = pageHeight * document.pageAspectRatio
 
-            ZStack {
-                // 提前加载相邻页，避免翻页落位时 PDF 缩略图尚未准备好而闪白。
-                if canFlipForward {
-                    preloadedPage(spreads[spreadIndex + 1].left, pageWidth: pageWidth, pageHeight: pageHeight)
-                    preloadedPage(spreads[spreadIndex + 1].right, pageWidth: pageWidth, pageHeight: pageHeight)
-                }
-                if canFlipBackward {
-                    preloadedPage(spreads[spreadIndex - 1].left, pageWidth: pageWidth, pageHeight: pageHeight)
-                    preloadedPage(spreads[spreadIndex - 1].right, pageWidth: pageWidth, pageHeight: pageHeight)
-                }
-
-                // 静止纸页：拖动时只替换被翻页下方的那一侧。
-                // 翻动纸张的背面由 flippingPage 渲染，不能提前作为
-                // 目标 spread 的另一半露出来。
-                if !spreads.isEmpty {
-                    spreadView(
-                        isFlipping ? stationarySpreadDuringFlip : spreads[spreadIndex],
-                        pageWidth: pageWidth,
-                        pageHeight: pageHeight
-                    )
-
-                    // 顶层：正在翻转的那一页
-                    if isFlipping {
-                        flippingPage(pageWidth: pageWidth, pageHeight: pageHeight)
+            VStack(spacing: 0) {
+                ZStack {
+                    // 提前加载相邻页，避免翻页落位时 PDF 缩略图尚未准备好而闪白。
+                    if canFlipForward {
+                        preloadedPage(spreads[spreadIndex + 1].left, pageWidth: pageWidth, pageHeight: pageHeight)
+                        preloadedPage(spreads[spreadIndex + 1].right, pageWidth: pageWidth, pageHeight: pageHeight)
+                    }
+                    if canFlipBackward {
+                        preloadedPage(spreads[spreadIndex - 1].left, pageWidth: pageWidth, pageHeight: pageHeight)
+                        preloadedPage(spreads[spreadIndex - 1].right, pageWidth: pageWidth, pageHeight: pageHeight)
                     }
 
-                    // 左右点击热区
-                    HStack(spacing: 0) {
-                        Color.clear.contentShape(Rectangle())
-                            .onTapGesture { flipBackward() }
-                        Color.clear.contentShape(Rectangle())
-                            .onTapGesture { flipForward() }
-                    }
-                    .frame(width: pageWidth * 2, height: pageHeight)
+                    // 静止纸页：拖动时只替换被翻页下方的那一侧。
+                    // 翻动纸张的背面由 flippingPage 渲染，不能提前作为
+                    // 目标 spread 的另一半露出来。
+                    if !spreads.isEmpty {
+                        spreadView(
+                            isFlipping ? stationarySpreadDuringFlip : spreads[spreadIndex],
+                            pageWidth: pageWidth,
+                            pageHeight: pageHeight
+                        )
 
-                    // 可见的翻页按钮：macOS 悬停或首次进入时显示，
-                    // iOS 始终显示，和透明热区叠加使用。
-                    flipControls(pageWidth: pageWidth, pageHeight: pageHeight)
+                        // 顶层：正在翻转的那一页
+                        if isFlipping {
+                            flippingPage(pageWidth: pageWidth, pageHeight: pageHeight)
+                        }
+
+                        // 左右点击热区
+                        HStack(spacing: 0) {
+                            Color.clear.contentShape(Rectangle())
+                                .onTapGesture { flipBackward() }
+                            Color.clear.contentShape(Rectangle())
+                                .onTapGesture { flipForward() }
+                        }
+                        .frame(width: pageWidth * 2, height: pageHeight)
+
+                        // macOS：按钮叠在书页外侧边缘，悬停或首次进入时显示。
+                        #if os(macOS)
+                        flipControls(width: pageWidth * 2, height: pageHeight)
+                        #endif
+                    }
                 }
-            }
-            .frame(width: pageWidth * 2, height: pageHeight)
-            .contentShape(Rectangle())
-            .onHover { hovering in
-                isHoveringBook = hovering
-                #if os(macOS)
-                if hovering {
-                    NSCursor.pointingHand.set()
-                } else {
-                    NSCursor.arrow.set()
+                .frame(width: pageWidth * 2, height: pageHeight)
+                .contentShape(Rectangle())
+                .onHover { hovering in
+                    isHoveringBook = hovering
+                    #if os(macOS)
+                    if hovering {
+                        NSCursor.pointingHand.set()
+                    } else {
+                        NSCursor.arrow.set()
+                    }
+                    #endif
+                }
+                .gesture(flipDrag(pageWidth: pageWidth))
+
+                // iOS / visionOS：按钮放在书下方，避免遮挡页面文字，始终可见。
+                #if !os(macOS)
+                if bottomControlsHeight > 0 {
+                    flipControls(width: pageWidth * 2, height: bottomControlsHeight)
                 }
                 #endif
             }
-            .gesture(flipDrag(pageWidth: pageWidth))
             .frame(width: geo.size.width, height: geo.size.height)
         }
         .onDisappear {
@@ -227,7 +243,7 @@ struct FlipBookView: View {
     }
 
     @ViewBuilder
-    private func flipControls(pageWidth: CGFloat, pageHeight: CGFloat) -> some View {
+    private func flipControls(width: CGFloat, height: CGFloat) -> some View {
         let showsControls = shouldShowFlipControls
 
         HStack(spacing: 0) {
@@ -243,8 +259,8 @@ struct FlipBookView: View {
                 .allowsHitTesting(canFlipForward && showsControls)
                 .accessibilityHidden(!(canFlipForward && showsControls))
         }
-        .padding(.horizontal, 10)
-        .frame(width: pageWidth * 2, height: pageHeight)
+        .padding(.horizontal, 5)
+        .frame(width: width, height: height)
         .animation(.easeInOut(duration: 0.15), value: showsControls)
     }
 
@@ -261,7 +277,7 @@ struct FlipBookView: View {
             Image(systemName: forward ? "chevron.right" : "chevron.left")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.secondary)
-                .frame(width: 32, height: 32)
+                .frame(width: 30, height: 30)
                 .background(.regularMaterial, in: Circle())
                 .overlay(
                     Circle()
