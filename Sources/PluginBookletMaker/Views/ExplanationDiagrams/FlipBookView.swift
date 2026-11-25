@@ -1,5 +1,9 @@
 import SwiftUI
 
+#if os(macOS)
+import AppKit
+#endif
+
 // MARK: - Flip Book View
 
 /// 「装订后」示意图：一本可交互的虚拟小册子。
@@ -33,6 +37,12 @@ struct FlipBookView: View {
 
     /// 翻页方向：true = 向前翻（右页翻到左边），false = 向后翻
     @State private var flippingForward = true
+
+    /// 鼠标是否停在书本上，macOS 据此显示边缘翻页按钮
+    @State private var isHoveringBook = false
+
+    /// 是否已经翻过页；首次进入时保留更明显的翻页提示
+    @AppStorage("booklet.flipHintSeen") private var hasSeenFlipHint = false
 
     var body: some View {
         GeometryReader { geo in
@@ -76,12 +86,31 @@ struct FlipBookView: View {
                             .onTapGesture { flipForward() }
                     }
                     .frame(width: pageWidth * 2, height: pageHeight)
+
+                    // 可见的翻页按钮：macOS 悬停或首次进入时显示，
+                    // iOS 始终显示，和透明热区叠加使用。
+                    flipControls(pageWidth: pageWidth, pageHeight: pageHeight)
                 }
             }
             .frame(width: pageWidth * 2, height: pageHeight)
             .contentShape(Rectangle())
+            .onHover { hovering in
+                isHoveringBook = hovering
+                #if os(macOS)
+                if hovering {
+                    NSCursor.pointingHand.set()
+                } else {
+                    NSCursor.arrow.set()
+                }
+                #endif
+            }
             .gesture(flipDrag(pageWidth: pageWidth))
             .frame(width: geo.size.width, height: geo.size.height)
+        }
+        .onDisappear {
+            #if os(macOS)
+            NSCursor.arrow.set()
+            #endif
         }
         .onChange(of: document.id) { _, _ in
             spreadIndex = 0
@@ -189,6 +218,62 @@ struct FlipBookView: View {
     private var canFlipForward: Bool { spreadIndex < spreads.count - 1 }
     private var canFlipBackward: Bool { spreadIndex > 0 }
 
+    private var shouldShowFlipControls: Bool {
+        #if os(macOS)
+        isHoveringBook || !hasSeenFlipHint
+        #else
+        true
+        #endif
+    }
+
+    @ViewBuilder
+    private func flipControls(pageWidth: CGFloat, pageHeight: CGFloat) -> some View {
+        let showsControls = shouldShowFlipControls
+
+        HStack(spacing: 0) {
+            flipArrow(forward: false)
+                .opacity(canFlipBackward && showsControls ? 1 : 0)
+                .allowsHitTesting(canFlipBackward && showsControls)
+                .accessibilityHidden(!(canFlipBackward && showsControls))
+
+            Spacer(minLength: 0)
+
+            flipArrow(forward: true)
+                .opacity(canFlipForward && showsControls ? 1 : 0)
+                .allowsHitTesting(canFlipForward && showsControls)
+                .accessibilityHidden(!(canFlipForward && showsControls))
+        }
+        .padding(.horizontal, 10)
+        .frame(width: pageWidth * 2, height: pageHeight)
+        .animation(.easeInOut(duration: 0.15), value: showsControls)
+    }
+
+    private func flipArrow(forward: Bool) -> some View {
+        let title = BookletLocalization.string(forward ? "Next page" : "Previous page")
+
+        return Button {
+            if forward {
+                flipForward()
+            } else {
+                flipBackward()
+            }
+        } label: {
+            Image(systemName: forward ? "chevron.right" : "chevron.left")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 32, height: 32)
+                .background(.regularMaterial, in: Circle())
+                .overlay(
+                    Circle()
+                        .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5)
+                )
+                .shadow(color: .black.opacity(0.12), radius: 4, y: 1)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+        .accessibilityIdentifier(forward ? "booklet.flip.next" : "booklet.flip.previous")
+    }
+
     @ViewBuilder
     private func preloadedPage(_ pageNumber: Int?, pageWidth: CGFloat, pageHeight: CGFloat) -> some View {
         if let pageNumber {
@@ -214,6 +299,8 @@ struct FlipBookView: View {
 
     /// 等页面动画真正完成后，再原子地切换到目标 spread。
     private func animateFlip(duration: TimeInterval) {
+        markFlipHintSeen()
+
         let token = UUID()
         flipCompletionToken = token
         withAnimation(
@@ -233,6 +320,13 @@ struct FlipBookView: View {
                     : max(spreadIndex - 1, 0)
                 flipProgress = 0
             }
+        }
+    }
+
+    private func markFlipHintSeen() {
+        guard !hasSeenFlipHint else { return }
+        withAnimation(.easeInOut(duration: 0.2)) {
+            hasSeenFlipHint = true
         }
     }
 
@@ -257,6 +351,45 @@ struct FlipBookView: View {
                     }
                 }
             }
+    }
+}
+
+// MARK: - Paging
+
+/// spread 与页码的映射，供总览页的页码指示复用。
+enum FlipBookPaging {
+    /// 一个 spread 对应的 1-based 页码区间；封面和封底只有单页。
+    static func pageRange(forSpread index: Int, pageCount: Int) -> ClosedRange<Int>? {
+        guard pageCount > 0, index >= 0 else { return nil }
+        if index == 0 { return 1...1 }
+
+        let first = index * 2
+        guard first <= pageCount else { return nil }
+        return first...min(first + 1, pageCount)
+    }
+}
+
+// MARK: - Hint
+
+/// 首次进入翻页预览时的操作提示；翻过一页后不再出现。
+struct FlipBookHint: View {
+    let isFlippable: Bool
+
+    @AppStorage("booklet.flipHintSeen") private var hasSeenHint = false
+
+    var body: some View {
+        if isFlippable && !hasSeenHint {
+            Label {
+                Text(BookletLocalization.string("Click either side of the book to turn the page"))
+                    .fixedSize(horizontal: false, vertical: true)
+            } icon: {
+                Image(systemName: "hand.tap")
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .accessibilityIdentifier("booklet.flip.hint")
+            .transition(.opacity)
+        }
     }
 }
 

@@ -404,9 +404,54 @@ struct BookletExplanationView: View {
     }
 
     private var afterBindingContent: some View {
-        FlipBookView(document: document, spreadIndex: $afterBindingSpreadIndex)
-            .padding(.horizontal, 16)
-            .padding(.bottom, 8)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 7) {
+                Image(systemName: "book.closed")
+                    .accessibilityHidden(true)
+
+                Text(BookletLocalization.string("Preview the booklet"))
+
+                Spacer(minLength: 8)
+
+                Text(afterBindingPageLabel)
+                    .monospacedDigit()
+            }
+            .font(DesignTokens.Typography.caption1)
+            .foregroundStyle(theme.textSecondary)
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("booklet.flip.header")
+
+            FlipBookHint(isFlippable: document.pageCount > 1)
+
+            FlipBookView(document: document, spreadIndex: $afterBindingSpreadIndex)
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 12)
+        .padding(.bottom, 8)
+    }
+
+    /// 「装订后」页码指示：封面/封底是单页，其余 spread 是跨页。
+    private var afterBindingPageLabel: String {
+        guard let range = FlipBookPaging.pageRange(
+            forSpread: afterBindingSpreadIndex,
+            pageCount: document.pageCount
+        ) else {
+            return ""
+        }
+
+        if range.lowerBound == range.upperBound {
+            return BookletLocalization.string(
+                "Page %lld of %lld",
+                Int64(range.lowerBound),
+                Int64(document.pageCount)
+            )
+        }
+
+        return BookletLocalization.string(
+            "Pages %@ of %lld",
+            "\(range.lowerBound)–\(range.upperBound)",
+            Int64(document.pageCount)
+        )
     }
 
     private func pairCaption(_ sheet: OutputSheet) -> String {

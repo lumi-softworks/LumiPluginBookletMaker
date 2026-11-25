@@ -356,8 +356,12 @@ struct BookletPreviewStageView: View {
                     }
                 }
             }
+
+            FlipBookHint(isFlippable: viewModel.currentDocument.pageCount > 1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
             FlipBookView(document: viewModel.currentDocument, spreadIndex: $reviewSpreadIndex)
-            .frame(height: 280)
+                .frame(height: 280)
         }
     }
 

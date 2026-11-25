@@ -2826,6 +2826,41 @@
         }
       }
     },
+    "Click either side of the book to turn the page" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Click either side of the book to turn the page"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点击书页左右两侧翻页"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "點擊書頁左右兩側翻頁"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "點擊書頁左右兩側翻頁"
+          }
+        },
+        "zh-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "點擊書頁左右兩側翻頁"
+          }
+        }
+      }
+    },
     "Click Export Booklet PDF and choose where to save." : {
       "localizations" : {
         "en" : {
