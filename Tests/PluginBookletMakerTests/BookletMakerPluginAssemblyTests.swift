@@ -195,7 +195,7 @@ struct BookletMakerPluginAssemblyTests {
 
     // MARK: - Toolbar
 
-    @Test("activating installs a title item and deactivating removes it")
+    @Test("activating installs the tool tabs item and never a duplicate title")
     func toolbarItemFollowsActivation() throws {
         let kernel = KernelCoreContainer()
         let activityBar = DefaultActivityBarProviding()
@@ -210,16 +210,20 @@ struct BookletMakerPluginAssemblyTests {
         let plugin = BookletMakerPlugin()
         try plugin.onBoot(kernel: kernel)
         #expect(
-            !toolbar.toolbarItems.contains { $0.id == "\(plugin.id).title" },
-            "The title item must not exist before the workbench is opened"
+            !toolbar.toolbarItems.contains { $0.id == "\(plugin.id).toolTabs" },
+            "The tool tabs item must not exist before the workbench is opened"
         )
 
         activityBar.activateItem(id: "\(plugin.id).entry")
-        #expect(toolbar.toolbarItems.contains { $0.id == "\(plugin.id).title" })
+        #expect(toolbar.toolbarItems.contains { $0.id == "\(plugin.id).toolTabs" })
+        #expect(
+            !toolbar.toolbarItems.contains { $0.id == "\(plugin.id).title" },
+            "The tool tabs already show the current tool name; a separate title would duplicate it"
+        )
         #expect(toolbar.visibleCategories == [.global, .design])
 
         activityBar.activateItem(id: nil)
-        #expect(!toolbar.toolbarItems.contains { $0.id == "\(plugin.id).title" })
+        #expect(!toolbar.toolbarItems.contains { $0.id == "\(plugin.id).toolTabs" })
         #expect(toolbar.visibleCategories == Set(ToolbarItemCategory.allCases))
     }
 

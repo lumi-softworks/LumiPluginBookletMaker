@@ -9959,41 +9959,6 @@
         }
       }
     },
-    "Split PDF or Booklet Maker" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Split PDF or Booklet Maker"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "拆分PDF或者小册子生成"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "拆分PDF或小冊子製作"
-          }
-        },
-        "zh-HK" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "拆分PDF或小冊子製作"
-          }
-        },
-        "zh-TW" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "拆分PDF或小冊子製作"
-          }
-        }
-      }
-    },
     "Split Plan" : {
       "extractionState" : "manual",
       "localizations" : {

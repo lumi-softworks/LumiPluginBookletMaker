@@ -186,15 +186,6 @@ public final class BookletMakerPlugin: SuperPlugin, PluginDataMigrating, SuperLo
                         contentView?.setContentView(AnyView(BookletMakerMainView(viewModel: self.sharedViewModel)))
                         toolbar?.addToolbarItems([
                             ToolbarItem(
-                                id: "\(self.id).title",
-                                title: BookletLocalization.string("Split PDF or Booklet Maker"),
-                                placement: .center,
-                                category: .design,
-                                order: 200
-                            ) {
-                                BookletMakerToolbarTitleView(viewModel: self.sharedViewModel)
-                            },
-                            ToolbarItem(
                                 id: "\(self.id).toolTabs",
                                 title: BookletLocalization.string("PDF Tools"),
                                 placement: .center,
@@ -211,7 +202,7 @@ public final class BookletMakerPlugin: SuperPlugin, PluginDataMigrating, SuperLo
                         railView?.setVisibleCategories(Set(RailViewCategory.allCases))
                         rootView?.setRailViewVisible(railView?.hasVisibleTabs ?? false)
                         railView?.deactivateWidthProfile(ownerID: pluginID)
-                        toolbar?.removeToolbarItems(ids: ["\(self.id).title", "\(self.id).toolTabs"])
+                        toolbar?.removeToolbarItems(ids: ["\(self.id).toolTabs"])
                     }
                 },
             ])
@@ -358,7 +349,7 @@ public final class BookletMakerPlugin: SuperPlugin, PluginDataMigrating, SuperLo
             railView?.setVisibleCategories(Set(RailViewCategory.allCases))
             kernel.resolveProvider((any RootViewProviding).self)?.setRailViewVisible(railView?.hasVisibleTabs ?? false)
         }
-        kernel.resolveProvider((any ToolbarProviding).self)?.removeToolbarItems(ids: ["\(id).title", "\(id).toolTabs"])
+        kernel.resolveProvider((any ToolbarProviding).self)?.removeToolbarItems(ids: ["\(id).toolTabs"])
         #if os(iOS)
         kernel.resolveProvider((any MobileTabBarProviding).self)?.removeItems(ownedBy: id)
         #endif
