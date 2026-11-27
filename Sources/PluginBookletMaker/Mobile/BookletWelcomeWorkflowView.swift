@@ -8,16 +8,15 @@ import UIKit
 /// 首页「制作小册子」卡片里的流程示意图。
 ///
 /// 静态形态按真实纸张比例、2×2 展示四步：原 PDF（8 页）→ 转换为 A4 `[8|1]`
-/// 两张 → 双面打印 → 对折装订；动效形态把 A4 沿中线折成小册子。
+/// 两张 → 双面打印 → 对折装订；右上角的「动效」按钮打开全屏折叠演示
+/// （`BookletFoldShowcaseView`），点卡片本身则进入工具。
 /// 纸页内容全部来自内置示例 PDF（`DemoPDFProvider`），因此和用户
 /// 在 App 里打开的演示绘本完全一致。
 struct BookletWelcomeWorkflowView: View {
-    @Binding var isAnimating: Bool
+    let onShowAnimation: () -> Void
     let onOpen: () -> Void
 
     @StateObject private var thumbnails = BookletDemoPageThumbnails.shared
-    @State private var animationStart = Date()
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// 统一比例尺 ≈ 0.38pt/mm：A5 页高 80、A4 横向宽 113。
     ///
@@ -32,27 +31,20 @@ struct BookletWelcomeWorkflowView: View {
     private let artHeight: CGFloat = 84
     private let arrowWidth: CGFloat = 10
     private let rowSpacing: CGFloat = 10
-    /// 两行示意图 + 顶部切换按钮留白 + 底部留白的固定高度。
-    /// 形态切换时高度不变，避免卡片跳动。
+    /// 两行示意图 + 顶部按钮留白 + 底部留白的固定高度。
     private let illustrationHeight: CGFloat = 252
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            Group {
-                if isAnimating {
-                    animatedFlow
-                } else {
-                    staticFlow
-                }
-            }
-            .padding(.top, 30)
-            .padding(.bottom, 7)
-            .frame(maxWidth: .infinity)
-            .contentShape(Rectangle())
-            .onTapGesture(perform: onOpen)
-            .accessibilityHidden(true)
+            staticFlow
+                .padding(.top, 30)
+                .padding(.bottom, 7)
+                .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
+                .onTapGesture(perform: onOpen)
+                .accessibilityHidden(true)
 
-            modeToggle
+            animateButton
                 .padding(.top, 3)
                 .padding(.trailing, 4)
         }
@@ -63,23 +55,17 @@ struct BookletWelcomeWorkflowView: View {
             in: RoundedRectangle(cornerRadius: 14, style: .continuous)
         )
         .onAppear { thumbnails.prepare() }
-        .onChange(of: isAnimating) { _, _ in
-            animationStart = Date()
-        }
     }
 
-    // MARK: - Mode Toggle
+    // MARK: - Animate Entry
 
-    private var modeToggle: some View {
-        Button {
-            withAnimation(.easeInOut(duration: 0.18)) {
-                isAnimating.toggle()
-            }
-        } label: {
+    /// 想深入了解折叠过程的用户点这里，演示放到全屏展示。
+    private var animateButton: some View {
+        Button(action: onShowAnimation) {
             HStack(spacing: 4) {
-                Image(systemName: isAnimating ? "stop.fill" : "play.fill")
+                Image(systemName: "play.fill")
                     .font(.system(size: 8, weight: .bold))
-                Text(BookletLocalization.string(isAnimating ? "Static" : "Animate"))
+                Text(BookletLocalization.string("Animate"))
                     .font(.system(size: 10.5, weight: .semibold))
             }
             .foregroundStyle(BookletMobileStyle.accent)
@@ -93,10 +79,8 @@ struct BookletWelcomeWorkflowView: View {
             .padding(.vertical, 5)
         }
         .buttonStyle(.plain)
-        .accessibilityIdentifier("welcome.bookletMode")
-        .accessibilityLabel(BookletLocalization.string(
-            isAnimating ? "Show static steps" : "Show fold animation"
-        ))
+        .accessibilityIdentifier("welcome.bookletShowcase")
+        .accessibilityLabel(BookletLocalization.string("Show fold animation"))
     }
 
     private var toggleFill: Color {
@@ -327,28 +311,6 @@ struct BookletWelcomeWorkflowView: View {
         .frame(height: artHeight)
     }
 
-    // MARK: - Animated Flow
-
-    private var animatedFlow: some View {
-        VStack(spacing: 6) {
-            TimelineView(.animation(paused: !isAnimating)) { context in
-                BookletFoldScene(
-                    elapsed: context.date.timeIntervalSince(animationStart),
-                    images: thumbnails.images,
-                    reduceMotion: reduceMotion
-                )
-            }
-            .frame(height: 140)
-
-            Text(BookletLocalization.string("Print duplex, then fold and staple."))
-                .font(.system(size: 11.5, weight: .medium))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-        }
-        .frame(maxHeight: .infinity)
-    }
-
     // MARK: - Page Surface
 
     private func pageSurface(
@@ -381,15 +343,18 @@ struct BookletWelcomeWorkflowView: View {
 
 // MARK: - Finished Booklet
 
-private struct MiniFinishedBooklet: View {
+/// 折好的小册子：封面 + 纸厚 + 书脊阴影 + 订书钉。
+/// `scale` 让同一套细节在首页小图和全屏演示里保持同样的观感比例。
+struct MiniFinishedBooklet: View {
     let image: UIImage?
     let pageWidth: CGFloat
     let pageHeight: CGFloat
+    var scale: CGFloat = 1
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            thickness(offset: 2.4, opacity: 0.7)
-            thickness(offset: 1.2, opacity: 0.9)
+            thickness(offset: 2.4 * scale, opacity: 0.7)
+            thickness(offset: 1.2 * scale, opacity: 0.9)
 
             ZStack {
                 Color.white
@@ -400,10 +365,10 @@ private struct MiniFinishedBooklet: View {
                 }
             }
             .frame(width: pageWidth, height: pageHeight)
-            .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 3 * scale, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 3, style: .continuous)
-                    .strokeBorder(Color.black.opacity(0.16), lineWidth: 0.6)
+                RoundedRectangle(cornerRadius: 3 * scale, style: .continuous)
+                    .strokeBorder(Color.black.opacity(0.16), lineWidth: 0.6 * scale)
             }
             .overlay(alignment: .leading) {
                 LinearGradient(
@@ -411,24 +376,28 @@ private struct MiniFinishedBooklet: View {
                     startPoint: .leading,
                     endPoint: .trailing
                 )
-                .frame(width: 4)
+                .frame(width: 4 * scale)
             }
             .overlay { staples }
-            .overlay(alignment: .bottom) {
-                PageNumberChip(number: 1)
-                    .padding(.bottom, 2)
+            .overlay(alignment: .bottomTrailing) {
+                PageNumberChip(number: 1, scale: scale)
+                    .padding(2 * scale)
             }
-            .shadow(color: .black.opacity(0.14), radius: 1.6, y: 1)
+            .shadow(color: .black.opacity(0.14), radius: 1.6 * scale, y: 1 * scale)
         }
-        .frame(width: pageWidth + 2.4, height: pageHeight + 2.4, alignment: .topLeading)
+        .frame(
+            width: pageWidth + 2.4 * scale,
+            height: pageHeight + 2.4 * scale,
+            alignment: .topLeading
+        )
     }
 
     private func thickness(offset: CGFloat, opacity: Double) -> some View {
-        RoundedRectangle(cornerRadius: 3, style: .continuous)
+        RoundedRectangle(cornerRadius: 3 * scale, style: .continuous)
             .fill(Color.white)
             .overlay {
-                RoundedRectangle(cornerRadius: 3, style: .continuous)
-                    .strokeBorder(Color.black.opacity(0.14), lineWidth: 0.6)
+                RoundedRectangle(cornerRadius: 3 * scale, style: .continuous)
+                    .strokeBorder(Color.black.opacity(0.14), lineWidth: 0.6 * scale)
             }
             .frame(width: pageWidth, height: pageHeight)
             .opacity(opacity)
@@ -441,178 +410,37 @@ private struct MiniFinishedBooklet: View {
             Spacer(minLength: 0)
             staple
         }
-        .padding(.leading, 2)
-        .padding(.vertical, 11)
+        .padding(.leading, 2 * scale)
+        .padding(.vertical, 11 * scale)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var staple: some View {
-        RoundedRectangle(cornerRadius: 0.8)
+        RoundedRectangle(cornerRadius: 0.8 * scale)
             .fill(Color(uiColor: .systemGray))
-            .frame(width: 2, height: 6)
+            .frame(width: 2 * scale, height: 6 * scale)
     }
 }
 
 // MARK: - Page Number Chip
 
-private struct PageNumberChip: View {
+struct PageNumberChip: View {
     let number: Int
+    var scale: CGFloat = 1
 
     var body: some View {
         Text("\(number)")
-            .font(.system(size: 7.5, weight: .semibold))
+            .font(.system(size: 7.5 * scale, weight: .semibold))
             .foregroundStyle(BookletMobileStyle.paperInk)
-            .padding(.horizontal, 2.5)
-            .frame(minWidth: 11, minHeight: 10)
+            .padding(.horizontal, 2.5 * scale)
+            .frame(minWidth: 11 * scale, minHeight: 10 * scale)
             .background(Color.white.opacity(0.86), in: Capsule())
-    }
-}
-
-// MARK: - Fold Scene
-
-private struct BookletFoldScene: View {
-    let elapsed: TimeInterval
-    let images: [Int: UIImage]
-    let reduceMotion: Bool
-
-    private let loop: TimeInterval = 6.4
-    private let sceneWidth: CGFloat = 188
-    private let sceneHeight: CGFloat = 138
-    private let pageHeight: CGFloat = 128
-    private var pageWidth: CGFloat { pageHeight * DemoStoryStyle.pageAspectRatio }
-    private var sheetWidth: CGFloat { pageHeight * 297 / 210 }
-    /// 动效里两页紧贴（不留中缝）：翻过去的一页要正好盖住另一页。
-    private var cellWidth: CGFloat { (sheetWidth - 9) / 2 }
-    private var cellHeight: CGFloat { pageHeight - 9 }
-
-    private var time: TimeInterval {
-        let value = max(0, elapsed)
-        return value.truncatingRemainder(dividingBy: loop)
-    }
-
-    private var foldAngle: Double {
-        guard !reduceMotion else { return 0 }
-        return 179 * ramp(1.15, 2.37)
-    }
-
-    private var sheetOpacity: Double {
-        guard time > 3.0 else { return 1 }
-        return 1 - ramp(3.0, 3.6)
-    }
-
-    private var sheetScale: Double {
-        1 - 0.1 * ramp(3.0, 3.6)
-    }
-
-    private var bookOpacity: Double {
-        guard time > 3.2 else { return 0 }
-        return ramp(3.2, 3.8) * (1 - ramp(5.5, 6.0))
-    }
-
-    private var bookScale: Double {
-        0.82 + 0.18 * ramp(3.2, 3.8)
-    }
-
-    var body: some View {
-        ZStack {
-            sheet
-                .opacity(sheetOpacity)
-                .scaleEffect(sheetScale)
-            MiniFinishedBooklet(
-                image: images[1],
-                pageWidth: pageWidth,
-                pageHeight: pageHeight
-            )
-            .opacity(bookOpacity)
-            .scaleEffect(bookScale)
-        }
-        .frame(width: sceneWidth, height: sceneHeight)
-    }
-
-    /// 纸面不铺整张白底：翻页过半后右侧本应是空的（纸已经翻到左边），
-    /// 整张白底会让检视者误以为右侧还留着一张纸。
-    private var sheet: some View {
-        ZStack(alignment: .topLeading) {
-            pageCell(page: 8)
-                .frame(width: cellWidth, height: cellHeight)
-                .offset(x: 4.5, y: 4.5)
-
-            foldableCell
-                .frame(width: cellWidth, height: cellHeight)
-                .rotation3DEffect(
-                    .degrees(-foldAngle),
-                    axis: (x: 0, y: 1, z: 0),
-                    anchor: .leading,
-                    perspective: 0.4
-                )
-                .offset(x: 4.5 + cellWidth, y: 4.5)
-        }
-        // 两个子视图都只有半张纸宽（另一半靠 offset 摆位），
-        // 用 leading 对齐才是从纸张左边开始铺，否则整张纸会被右移半格。
-        .frame(width: sheetWidth, height: pageHeight, alignment: .topLeading)
-    }
-
-    private var foldableCell: some View {
-        ZStack {
-            pageCell(page: 1)
-                .opacity(foldAngle < 90 ? 1 : 0)
-            // 页 1 的纸背是页 2（A4 背面右半幅），翻过去后正好朝上。
-            // 3D 旋转会把背面镜像显示，这里先水平翻转抵消。
-            backFace(page: 2)
-                .scaleEffect(x: -1, y: 1)
-                .opacity(foldAngle < 90 ? 0 : 1)
-        }
-        .shadow(color: .black.opacity(0.16), radius: 1.4, y: 0.7)
-    }
-
-    private func pageCell(page: Int) -> some View {
-        ZStack {
-            Color.white
-            if let image = images[page] {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-            }
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 3, style: .continuous)
-                .strokeBorder(Color.black.opacity(0.16), lineWidth: 0.8)
-        }
-        .overlay(alignment: .bottomTrailing) {
-            PageNumberChip(number: page)
-                .padding(2)
-        }
-        .shadow(color: .black.opacity(0.12), radius: 2, y: 1)
-    }
-
-    /// 纸背不带页码角标——翻面后角标会被镜像。
-    private func backFace(page: Int) -> some View {
-        ZStack {
-            Color.white
-            if let image = images[page] {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-            }
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 3, style: .continuous)
-                .strokeBorder(Color.black.opacity(0.16), lineWidth: 0.8)
-        }
-    }
-
-    private func ramp(_ start: TimeInterval, _ end: TimeInterval) -> Double {
-        guard end > start else { return time >= end ? 1 : 0 }
-        let progress = min(max((time - start) / (end - start), 0), 1)
-        return progress * progress * (3 - 2 * progress)
     }
 }
 
 // MARK: - Demo PDF Thumbnails
 
-/// 把内置示例 PDF 的每一页渲染成首页示意图用的小缩略图。
+/// 把内置示例 PDF 的每一页渲染成纸页插图和全屏演示用的缩略图。
 /// 只渲染一次并常驻内存；首帧加载完成前纸页显示为空白纸。
 final class BookletDemoPageThumbnails: ObservableObject, @unchecked Sendable {
     static let shared = BookletDemoPageThumbnails()
@@ -654,7 +482,9 @@ final class BookletDemoPageThumbnails: ObservableObject, @unchecked Sendable {
             return RenderedPages(images: [:])
         }
 
-        let pixelHeight = DemoStoryStyle.pageSize.height * 0.5
+        // 全屏演示把纸页放到 ~260pt 高，@3x 需要 ~780px；
+        // 1.4× 源图（~833px）正好覆盖，不至于在放大的折页上看出发虚。
+        let pixelHeight = DemoStoryStyle.pageSize.height * 1.4
         let size = CGSize(
             width: pixelHeight * DemoStoryStyle.pageAspectRatio,
             height: pixelHeight

@@ -3,8 +3,8 @@ import XCTest
 /// 首页「制作小册子」卡片内的流程示意图。
 ///
 /// 卡片目前由两部分组成：标题行（`welcome.bookletTool`）与示意图。
-/// 示意图自带「动效 / 静态」切换按钮，两者是兄弟节点——切换按钮必须
-/// 独立可点，不能被卡片主体的点击吞掉；点示意图本身又应该进入工具页。
+/// 示意图右上角的「动效」按钮把折叠演示铺满全屏（`booklet.showcase.*`），
+/// 按钮必须独立可点，不能被卡片主体的点击吞掉；点示意图本身则进入工具页。
 final class BookletMakerMobileWelcomeIllustrationUITests: BookletMakerMobileUITestCase {
 
     override func setUpWithError() throws {
@@ -15,43 +15,42 @@ final class BookletMakerMobileWelcomeIllustrationUITests: BookletMakerMobileUITe
         )
     }
 
-    /// 切换按钮在两种形态之间往返，且始终可点。
-    ///
-    /// 回归重点：卡片曾经是整卡 Button，切换按钮嵌在其中会被整卡点击
-    /// 吞掉（点「动效」直接进入工具页）。这里连续切换两次，确认第二次
-    /// 仍停留在首页。
-    func testModeToggleSwitchesBetweenStaticAndAnimated() {
-        let toggle = element("welcome.bookletMode")
-        XCTAssertTrue(toggle.waitForExistence(timeout: 10), app.debugDescription)
-        XCTAssertEqual(toggle.label, "Show fold animation")
+    /// 点「动效」打开全屏演示，点「关闭」回到首页。
+    func testShowcaseButtonOpensFullScreenAndCloses() {
+        let open = element("welcome.bookletShowcase")
+        XCTAssertTrue(open.waitForExistence(timeout: 10), app.debugDescription)
 
-        toggle.tap()
+        open.tap()
+        let close = element("booklet.showcase.close")
+        XCTAssertTrue(close.waitForExistence(timeout: 10), "未打开全屏折叠演示。\(app.debugDescription)")
         XCTAssertTrue(
-            waitForLabel("Show static steps", on: toggle),
-            "点击后未进入动效形态。\(app.debugDescription)"
+            element("booklet.showcase.text").exists,
+            "全屏演示缺少说明文字。\(app.debugDescription)"
+        )
+
+        close.tap()
+        XCTAssertTrue(
+            waitForDisappearance(of: close),
+            "关闭后全屏演示仍在。\(app.debugDescription)"
         )
         XCTAssertTrue(
             element("welcome.bookletTool").exists,
-            "切换动效后应仍停留在首页。\(app.debugDescription)"
-        )
-
-        toggle.tap()
-        XCTAssertTrue(
-            waitForLabel("Show fold animation", on: toggle),
-            "再次点击后未回到静态形态。\(app.debugDescription)"
+            "关闭后应回到首页。\(app.debugDescription)"
         )
     }
 
-    /// 动画确实在跑：进入动效形态 1.6 秒后画面发生变化。
+    /// 动画确实在跑：进入全屏演示 1.5 秒后画面发生变化。
     ///
     /// 折叠动效的起始帧与 1.6 秒处（折叠角约 90°）帧内容不同；
     /// 若 TimelineView 没有驱动，两张截图会完全一致。
-    func testAnimatedModeRendersMovingFrames() {
-        let toggle = element("welcome.bookletMode")
-        XCTAssertTrue(toggle.waitForExistence(timeout: 10), app.debugDescription)
-
-        toggle.tap()
-        XCTAssertTrue(waitForLabel("Show static steps", on: toggle), app.debugDescription)
+    func testShowcaseRendersMovingFrames() {
+        let open = element("welcome.bookletShowcase")
+        XCTAssertTrue(open.waitForExistence(timeout: 10), app.debugDescription)
+        open.tap()
+        XCTAssertTrue(
+            element("booklet.showcase.close").waitForExistence(timeout: 10),
+            app.debugDescription
+        )
 
         Thread.sleep(forTimeInterval: 1.5)
         let midFold = XCUIScreen.main.screenshot()
@@ -61,10 +60,10 @@ final class BookletMakerMobileWelcomeIllustrationUITests: BookletMakerMobileUITe
         XCTAssertNotEqual(
             midFold.pngRepresentation,
             second.pngRepresentation,
-            "动效形态的画面在持续时间内没有变化。"
+            "全屏演示的画面在持续时间内没有变化。"
         )
 
-        for (name, shot) in [("welcome-animated-folding", midFold), ("welcome-animated-folded", second)] {
+        for (name, shot) in [("showcase-folding", midFold), ("showcase-folded", second)] {
             let attachment = XCTAttachment(image: shot.image)
             attachment.name = name
             attachment.lifetime = .keepAlways
@@ -72,16 +71,16 @@ final class BookletMakerMobileWelcomeIllustrationUITests: BookletMakerMobileUITe
         }
     }
 
-    /// 点示意图主体（非标题行、非切换按钮）进入小册子引导页。
+    /// 点示意图主体（非标题行、非「动效」按钮）进入小册子引导页。
     func testTappingIllustrationOpensTool() {
-        let toggle = element("welcome.bookletMode")
-        XCTAssertTrue(toggle.waitForExistence(timeout: 10), app.debugDescription)
+        let open = element("welcome.bookletShowcase")
+        XCTAssertTrue(open.waitForExistence(timeout: 10), app.debugDescription)
 
         // 示意图被 `accessibilityHidden(true)` 隐藏（内部全是装饰性小字），
-        // 只能按坐标点击：切换按钮正下方即示意图中段。
+        // 只能按坐标点击：按钮正下方即示意图中段。
         let screen = app.windows.firstMatch
         let target = screen.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0))
-            .withOffset(CGVector(dx: 0, dy: toggle.frame.maxY + 45))
+            .withOffset(CGVector(dx: 0, dy: open.frame.maxY + 45))
         target.tap()
 
         // 引导页是 push 出来的，首页仍留在导航栈里（AX 树中可见但不可点），
@@ -92,9 +91,9 @@ final class BookletMakerMobileWelcomeIllustrationUITests: BookletMakerMobileUITe
         )
     }
 
-    private func waitForLabel(_ expected: String, on element: XCUIElement) -> Bool {
-        let predicate = NSPredicate(format: "label == %@", expected)
+    private func waitForDisappearance(of element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
+        let predicate = NSPredicate(format: "exists == false")
         let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
-        return XCTWaiter().wait(for: [expectation], timeout: 5) == .completed
+        return XCTWaiter().wait(for: [expectation], timeout: timeout) == .completed
     }
 }

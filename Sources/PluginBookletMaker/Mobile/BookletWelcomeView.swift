@@ -9,7 +9,7 @@ struct BookletWelcomeView: View {
     @ObservedObject var feature: BookletMakerMobileFeature
     let onChooseTool: (BookletMakerMobileFeature.Tool) -> Void
 
-    @State private var showsBookletAnimation = false
+    @State private var showsFoldShowcase = false
 
     var body: some View {
         GeometryReader { geometry in
@@ -56,6 +56,9 @@ struct BookletWelcomeView: View {
             }
         }
         .background(BookletMobileStyle.canvas)
+        .fullScreenCover(isPresented: $showsFoldShowcase) {
+            BookletFoldShowcaseView(onClose: { showsFoldShowcase = false })
+        }
         .navigationTitle(BookletLocalization.string("Booklet Maker"))
         .navigationBarTitleDisplayMode(.inline)
         // 导航栏工具栏由根视图统一挂载（首页与工具页共用 `documentMenu`），
@@ -98,8 +101,9 @@ struct BookletWelcomeView: View {
         }
     }
 
-    /// 小册子卡片自带「动效 / 静态」切换按钮。切换按钮必须是卡片主体
-    /// 的兄弟节点，否则会被整卡点击吞掉；因此标题行与示意图各自响应点击。
+    /// 小册子卡片自带「动效」入口按钮：点它全屏播放折叠演示，
+    /// 点标题行或示意图则进入工具。按钮必须是卡片主体的兄弟节点，
+    /// 否则会被整卡点击吞掉。
     private func bookletCard(
         tool: BookletMakerMobileFeature.Tool,
         title: String,
@@ -114,7 +118,7 @@ struct BookletWelcomeView: View {
                 .accessibilityIdentifier("welcome.\(tool.rawValue)Tool")
 
                 BookletWelcomeWorkflowView(
-                    isAnimating: $showsBookletAnimation,
+                    onShowAnimation: { showsFoldShowcase = true },
                     onOpen: { onChooseTool(tool) }
                 )
             }
