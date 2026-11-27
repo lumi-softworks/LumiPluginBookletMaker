@@ -7,7 +7,7 @@ import UIKit
 
 /// 首页「制作小册子」卡片里的流程示意图。
 ///
-/// 静态形态按真实纸张比例展示四步：原 PDF（8 页）→ 转换为 A4 `[8|1]`
+/// 静态形态按真实纸张比例、2×2 展示四步：原 PDF（8 页）→ 转换为 A4 `[8|1]`
 /// 两张 → 双面打印 → 对折装订；动效形态把 A4 沿中线折成小册子。
 /// 纸页内容全部来自内置示例 PDF（`DemoPDFProvider`），因此和用户
 /// 在 App 里打开的演示绘本完全一致。
@@ -19,19 +19,22 @@ struct BookletWelcomeWorkflowView: View {
     @State private var animationStart = Date()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    /// 统一比例尺 ≈ 0.25pt/mm：A5 页高 52.5、A4 横向宽 74.25。
-    private let pageHeight: CGFloat = 52.5
+    /// 统一比例尺 ≈ 0.38pt/mm：A5 页高 80、A4 横向宽 113。
+    ///
+    /// 四步按 2×2 排列而不是并排一行：并排时每步只有列表宽度的一半，
+    /// 纸页缩到 37pt 宽，用户看不清示例内容。
+    private let pageHeight: CGFloat = 80
     private var pageWidth: CGFloat { pageHeight * DemoStoryStyle.pageAspectRatio }
     private var sheetWidth: CGFloat { pageHeight * 297 / 210 }
     private var cellWidth: CGFloat { (sheetWidth - 9 - 3) / 2 }
     private var cellHeight: CGFloat { pageHeight - 9 }
 
-    private let artHeight: CGFloat = 62
-    private let arrowWidth: CGFloat = 9
-    private let fanStageWidth: CGFloat = 54
-    private let sheetStageWidth: CGFloat = 77
-    private let printStageWidth: CGFloat = 77
-    private let bookStageWidth: CGFloat = 54
+    private let artHeight: CGFloat = 84
+    private let arrowWidth: CGFloat = 10
+    private let rowSpacing: CGFloat = 10
+    /// 两行示意图 + 顶部切换按钮留白 + 底部留白的固定高度。
+    /// 形态切换时高度不变，避免卡片跳动。
+    private let illustrationHeight: CGFloat = 252
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
@@ -54,7 +57,7 @@ struct BookletWelcomeWorkflowView: View {
                 .padding(.trailing, 4)
         }
         .frame(maxWidth: .infinity)
-        .frame(height: 116)
+        .frame(height: illustrationHeight)
         .background(
             BookletMobileStyle.softAccent,
             in: RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -107,54 +110,59 @@ struct BookletWelcomeWorkflowView: View {
     // MARK: - Static Flow
 
     private var staticFlow: some View {
-        HStack(spacing: 0) {
-            stage(1, width: fanStageWidth, caption: "PDF") {
-                pageFan
-            }
-            flowArrow
-            stage(2, width: sheetStageWidth, caption: "To A4") {
-                imposedSheets
-            }
-            flowArrow
-            stage(3, width: printStageWidth, caption: "Duplex") {
-                printerStage
-            }
-            flowArrow
-            stage(4, width: bookStageWidth, caption: "Fold") {
-                finishedBooklet
-            }
+        VStack(spacing: rowSpacing) {
+            row(
+                stage(1, caption: "PDF") { pageFan },
+                stage(2, caption: "To A4") { imposedSheets }
+            )
+            row(
+                stage(3, caption: "Duplex") { printerStage },
+                stage(4, caption: "Fold") { finishedBooklet }
+            )
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxHeight: .infinity)
+    }
+
+    /// 一行两步；两步平分列宽，中间是步骤箭头。
+    private func row<First: View, Second: View>(
+        _ first: First,
+        _ second: Second
+    ) -> some View {
+        HStack(spacing: 0) {
+            first
+                .frame(maxWidth: .infinity)
+            flowArrow
+            second
+                .frame(maxWidth: .infinity)
+        }
     }
 
     private func stage<Art: View>(
         _ number: Int,
-        width: CGFloat,
         caption: String,
         @ViewBuilder art: () -> Art
     ) -> some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 5) {
             art()
-                .frame(width: width, height: artHeight)
-            HStack(spacing: 3) {
+                .frame(height: artHeight)
+            HStack(spacing: 3.5) {
                 Text("\(number)")
-                    .font(.system(size: 7.5, weight: .semibold))
+                    .font(.system(size: 8.5, weight: .semibold))
                     .foregroundStyle(BookletMobileStyle.accent)
-                    .frame(width: 11, height: 11)
+                    .frame(width: 13, height: 13)
                     .background(BookletMobileStyle.accent.opacity(0.12), in: Circle())
                 Text(BookletLocalization.string(caption))
-                    .font(.system(size: 9, weight: .medium))
+                    .font(.system(size: 10.5, weight: .medium))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
             }
         }
-        .frame(width: width)
     }
 
     private var flowArrow: some View {
         Image(systemName: "chevron.right")
-            .font(.system(size: 9, weight: .semibold))
+            .font(.system(size: 10, weight: .semibold))
             .foregroundStyle(BookletMobileStyle.accent.opacity(0.38))
             .frame(width: arrowWidth, height: artHeight)
     }
@@ -165,13 +173,13 @@ struct BookletWelcomeWorkflowView: View {
         ZStack {
             ForEach(SampleStory.pages.reversed()) { page in
                 let step = CGFloat(page.id - 1)
-                pageSurface(page: page.id, corner: 2.5, badge: .bottomTrailing)
+                pageSurface(page: page.id, corner: 3, badge: .bottomTrailing)
                     .frame(width: pageWidth, height: pageHeight)
-                    .offset(x: step * 2.2, y: step * 0.5)
+                    .offset(x: step * 2.5, y: step * 0.3)
                     .zIndex(Double(SampleStory.pageCount - page.id))
             }
         }
-        .frame(width: fanStageWidth, height: artHeight)
+        .frame(height: artHeight)
     }
 
     // MARK: - Stage 2 · Imposed A4 Sheets
@@ -229,25 +237,24 @@ struct BookletWelcomeWorkflowView: View {
 
     private var pdfTag: some View {
         Text("PDF")
-            .font(.system(size: 6.2, weight: .bold))
+            .font(.system(size: 7, weight: .bold))
             .tracking(0.3)
             .foregroundStyle(.white)
-            .padding(.horizontal, 4)
-            .frame(height: 11)
-            .background(BookletMobileStyle.paperInk, in: RoundedRectangle(cornerRadius: 3))
+            .padding(.horizontal, 5)
+            .frame(height: 13)
+            .background(BookletMobileStyle.paperInk, in: RoundedRectangle(cornerRadius: 3.5))
     }
 
     // MARK: - Stage 3 · Duplex Printer
 
     private var printerStage: some View {
-        ZStack(alignment: .topLeading) {
+        ZStack(alignment: .bottom) {
             imposedSheets(showsPDFTag: false)
-                .offset(x: 0.8)
+                .offset(y: -8)
             printer
-                .frame(width: printStageWidth, height: 14)
-                .offset(y: artHeight - 14)
+                .frame(width: sheetWidth, height: 16)
         }
-        .frame(width: printStageWidth, height: artHeight)
+        .frame(height: artHeight, alignment: .bottom)
     }
 
     private var printer: some View {
@@ -317,7 +324,7 @@ struct BookletWelcomeWorkflowView: View {
             pageWidth: pageWidth,
             pageHeight: pageHeight
         )
-        .frame(width: bookStageWidth, height: artHeight)
+        .frame(height: artHeight)
     }
 
     // MARK: - Animated Flow
@@ -331,15 +338,15 @@ struct BookletWelcomeWorkflowView: View {
                     reduceMotion: reduceMotion
                 )
             }
-            .frame(height: 58)
+            .frame(height: 140)
 
             Text(BookletLocalization.string("Print duplex, then fold and staple."))
-                .font(.system(size: 10, weight: .medium))
+                .font(.system(size: 11.5, weight: .medium))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
         }
-        .frame(height: 79)
+        .frame(maxHeight: .infinity)
     }
 
     // MARK: - Page Surface
@@ -453,10 +460,10 @@ private struct PageNumberChip: View {
 
     var body: some View {
         Text("\(number)")
-            .font(.system(size: 6, weight: .semibold))
+            .font(.system(size: 7.5, weight: .semibold))
             .foregroundStyle(BookletMobileStyle.paperInk)
-            .padding(.horizontal, 2)
-            .frame(minWidth: 9, minHeight: 8)
+            .padding(.horizontal, 2.5)
+            .frame(minWidth: 11, minHeight: 10)
             .background(Color.white.opacity(0.86), in: Capsule())
     }
 }
@@ -469,9 +476,9 @@ private struct BookletFoldScene: View {
     let reduceMotion: Bool
 
     private let loop: TimeInterval = 6.4
-    private let sceneWidth: CGFloat = 108
-    private let sceneHeight: CGFloat = 58
-    private let pageHeight: CGFloat = 52.5
+    private let sceneWidth: CGFloat = 188
+    private let sceneHeight: CGFloat = 138
+    private let pageHeight: CGFloat = 128
     private var pageWidth: CGFloat { pageHeight * DemoStoryStyle.pageAspectRatio }
     private var sheetWidth: CGFloat { pageHeight * 297 / 210 }
     /// 动效里两页紧贴（不留中缝）：翻过去的一页要正好盖住另一页。
@@ -540,7 +547,9 @@ private struct BookletFoldScene: View {
                 )
                 .offset(x: 4.5 + cellWidth, y: 4.5)
         }
-        .frame(width: sheetWidth, height: pageHeight)
+        // 两个子视图都只有半张纸宽（另一半靠 offset 摆位），
+        // 用 leading 对齐才是从纸张左边开始铺，否则整张纸会被右移半格。
+        .frame(width: sheetWidth, height: pageHeight, alignment: .topLeading)
     }
 
     private var foldableCell: some View {
@@ -565,16 +574,16 @@ private struct BookletFoldScene: View {
                     .scaledToFill()
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 1.5, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-                .strokeBorder(Color.black.opacity(0.16), lineWidth: 0.6)
+            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                .strokeBorder(Color.black.opacity(0.16), lineWidth: 0.8)
         }
         .overlay(alignment: .bottomTrailing) {
             PageNumberChip(number: page)
-                .padding(1.5)
+                .padding(2)
         }
-        .shadow(color: .black.opacity(0.12), radius: 1.2, y: 0.6)
+        .shadow(color: .black.opacity(0.12), radius: 2, y: 1)
     }
 
     /// 纸背不带页码角标——翻面后角标会被镜像。
@@ -587,10 +596,10 @@ private struct BookletFoldScene: View {
                     .scaledToFill()
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 1.5, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-                .strokeBorder(Color.black.opacity(0.16), lineWidth: 0.6)
+            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                .strokeBorder(Color.black.opacity(0.16), lineWidth: 0.8)
         }
     }
 
