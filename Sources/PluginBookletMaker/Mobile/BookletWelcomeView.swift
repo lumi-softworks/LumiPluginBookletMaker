@@ -15,13 +15,17 @@ struct BookletWelcomeView: View {
         GeometryReader { geometry in
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
+                    // 列宽上限 620 再减页面与卡片各 16pt 内边距，得到插图可用宽度。
+                    let illustrationWidth = min(geometry.size.width - 32, 620) - 32
+
                     toolCard(
                         tool: .booklet,
                         title: BookletLocalization.string("Make a Booklet"),
                         subtitle: BookletLocalization.string(
                             "Reorder pages for folded, double-sided printing."
                         ),
-                        illustration: .booklet
+                        illustration: .booklet,
+                        illustrationWidth: illustrationWidth
                     )
 
                     toolCard(
@@ -30,7 +34,8 @@ struct BookletWelcomeView: View {
                         subtitle: BookletLocalization.string(
                             "Mark page breaks and export separate files."
                         ),
-                        illustration: .split
+                        illustration: .split,
+                        illustrationWidth: illustrationWidth
                     )
 
                     toolCard(
@@ -39,7 +44,8 @@ struct BookletWelcomeView: View {
                         subtitle: BookletLocalization.string(
                             "Combine several PDFs into one file, in any order."
                         ),
-                        illustration: .merge
+                        illustration: .merge,
+                        illustrationWidth: illustrationWidth
                     )
 
                     if let message = feature.sessionErrorMessage {
@@ -75,11 +81,17 @@ struct BookletWelcomeView: View {
         tool: BookletMakerMobileFeature.Tool,
         title: String,
         subtitle: String,
-        illustration: Illustration
+        illustration: Illustration,
+        illustrationWidth: CGFloat
     ) -> some View {
         Group {
             if illustration == .booklet {
-                bookletCard(tool: tool, title: title, subtitle: subtitle)
+                bookletCard(
+                    tool: tool,
+                    title: title,
+                    subtitle: subtitle,
+                    illustrationWidth: illustrationWidth
+                )
             } else {
                 Button { onChooseTool(tool) } label: {
                     BookletMobileStyle.cardBackground {
@@ -107,7 +119,8 @@ struct BookletWelcomeView: View {
     private func bookletCard(
         tool: BookletMakerMobileFeature.Tool,
         title: String,
-        subtitle: String
+        subtitle: String,
+        illustrationWidth: CGFloat
     ) -> some View {
         BookletMobileStyle.cardBackground {
             VStack(alignment: .leading, spacing: 13) {
@@ -118,6 +131,7 @@ struct BookletWelcomeView: View {
                 .accessibilityIdentifier("welcome.\(tool.rawValue)Tool")
 
                 BookletWelcomeWorkflowView(
+                    illustrationWidth: illustrationWidth,
                     onShowAnimation: { showsFoldShowcase = true },
                     onOpen: { onChooseTool(tool) }
                 )

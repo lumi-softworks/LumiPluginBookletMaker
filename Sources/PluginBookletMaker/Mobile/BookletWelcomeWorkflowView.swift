@@ -7,32 +7,37 @@ import UIKit
 
 /// 首页「制作小册子」卡片里的流程示意图。
 ///
-/// 静态形态按真实纸张比例、2×2 展示四步：原 PDF（8 页）→ 转换为 A4 `[8|1]`
+/// 静态形态按真实纸张比例、一行四步展示：原 PDF（8 页）→ 转换为 A4 `[8|1]`
 /// 两张 → 双面打印 → 对折装订；右上角的「动效」按钮打开全屏折叠演示
 /// （`BookletFoldShowcaseView`），点卡片本身则进入工具。
 /// 纸页内容全部来自内置示例 PDF（`DemoPDFProvider`），因此和用户
 /// 在 App 里打开的演示绘本完全一致。
 struct BookletWelcomeWorkflowView: View {
+    /// 示意图可用宽度。四步一行时按它换算纸张比例尺，
+    /// 宽屏自动放大，窄屏缩到刚好放得下。
+    let illustrationWidth: CGFloat
     let onShowAnimation: () -> Void
     let onOpen: () -> Void
 
     @StateObject private var thumbnails = BookletDemoPageThumbnails.shared
 
-    /// 统一比例尺 ≈ 0.38pt/mm：A5 页高 80、A4 横向宽 113。
-    ///
-    /// 四步按 2×2 排列而不是并排一行：并排时每步只有列表宽度的一半，
-    /// 纸页缩到 37pt 宽，用户看不清示例内容。
-    private let pageHeight: CGFloat = 80
-    private var pageWidth: CGFloat { pageHeight * DemoStoryStyle.pageAspectRatio }
-    private var sheetWidth: CGFloat { pageHeight * 297 / 210 }
-    private var cellWidth: CGFloat { (sheetWidth - 9 - 3) / 2 }
-    private var cellHeight: CGFloat { pageHeight - 9 }
-
-    private let artHeight: CGFloat = 84
+    /// scale = 1 时四个舞台宽度之和（54 + 77 + 77 + 54）。
+    private let baseRowWidth: CGFloat = 262
     private let arrowWidth: CGFloat = 10
-    private let rowSpacing: CGFloat = 10
-    /// 两行示意图 + 顶部按钮留白 + 底部留白的固定高度。
-    private let illustrationHeight: CGFloat = 252
+    private let maxScale: CGFloat = 1.6
+
+    /// 统一比例尺 ≈ 0.25pt/mm：A5 页高 52.5，随卡片宽度放大。
+    private var scale: CGFloat {
+        let fit = (illustrationWidth - arrowWidth * 3) / baseRowWidth
+        return min(max(fit, 0.85), maxScale)
+    }
+
+    private var metrics: Metrics { Metrics(scale: scale) }
+
+    /// 顶部按钮留白 + 插图 + 图注 + 底部留白。
+    private var illustrationHeight: CGFloat {
+        30 + metrics.artHeight + 5 + 13 + 7
+    }
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
@@ -94,41 +99,35 @@ struct BookletWelcomeWorkflowView: View {
     // MARK: - Static Flow
 
     private var staticFlow: some View {
-        VStack(spacing: rowSpacing) {
-            row(
-                stage(1, caption: "PDF") { pageFan },
-                stage(2, caption: "To A4") { imposedSheets }
-            )
-            row(
-                stage(3, caption: "Duplex") { printerStage },
-                stage(4, caption: "Fold") { finishedBooklet }
-            )
-        }
-        .frame(maxHeight: .infinity)
-    }
-
-    /// 一行两步；两步平分列宽，中间是步骤箭头。
-    private func row<First: View, Second: View>(
-        _ first: First,
-        _ second: Second
-    ) -> some View {
         HStack(spacing: 0) {
-            first
-                .frame(maxWidth: .infinity)
+            stage(1, width: metrics.fanStageWidth, caption: "PDF") {
+                pageFan
+            }
             flowArrow
-            second
-                .frame(maxWidth: .infinity)
+            stage(2, width: metrics.sheetStageWidth, caption: "To A4") {
+                imposedSheets
+            }
+            flowArrow
+            stage(3, width: metrics.sheetStageWidth, caption: "Duplex") {
+                printerStage
+            }
+            flowArrow
+            stage(4, width: metrics.bookStageWidth, caption: "Fold") {
+                finishedBooklet
+            }
         }
+        .frame(maxWidth: .infinity)
     }
 
     private func stage<Art: View>(
         _ number: Int,
+        width: CGFloat,
         caption: String,
         @ViewBuilder art: () -> Art
     ) -> some View {
         VStack(spacing: 5) {
             art()
-                .frame(height: artHeight)
+                .frame(width: width, height: metrics.artHeight)
             HStack(spacing: 3.5) {
                 Text("\(number)")
                     .font(.system(size: 8.5, weight: .semibold))
@@ -142,13 +141,14 @@ struct BookletWelcomeWorkflowView: View {
                     .minimumScaleFactor(0.75)
             }
         }
+        .frame(width: width)
     }
 
     private var flowArrow: some View {
         Image(systemName: "chevron.right")
             .font(.system(size: 10, weight: .semibold))
             .foregroundStyle(BookletMobileStyle.accent.opacity(0.38))
-            .frame(width: arrowWidth, height: artHeight)
+            .frame(width: arrowWidth, height: metrics.artHeight)
     }
 
     // MARK: - Stage 1 · Source PDF
@@ -157,13 +157,13 @@ struct BookletWelcomeWorkflowView: View {
         ZStack {
             ForEach(SampleStory.pages.reversed()) { page in
                 let step = CGFloat(page.id - 1)
-                pageSurface(page: page.id, corner: 3, badge: .bottomTrailing)
-                    .frame(width: pageWidth, height: pageHeight)
-                    .offset(x: step * 2.5, y: step * 0.3)
+                pageSurface(page: page.id, corner: 2.5 * scale)
+                    .frame(width: metrics.pageWidth, height: metrics.pageHeight)
+                    .offset(x: step * 2.5 * scale, y: step * 0.3 * scale)
                     .zIndex(Double(SampleStory.pageCount - page.id))
             }
         }
-        .frame(height: artHeight)
+        .frame(height: metrics.artHeight)
     }
 
     // MARK: - Stage 2 · Imposed A4 Sheets
@@ -175,58 +175,66 @@ struct BookletWelcomeWorkflowView: View {
     private func imposedSheets(showsPDFTag: Bool) -> some View {
         ZStack(alignment: .topLeading) {
             sheetSurface(showsPDFTag: false)
-                .offset(x: 2.2, y: 1.6)
+                .offset(x: 2.2 * scale, y: 1.6 * scale)
             sheetSurface(showsPDFTag: showsPDFTag)
         }
-        .frame(width: sheetWidth + 2.2, height: pageHeight + 1.6)
+        .frame(
+            width: metrics.sheetWidth + 2.2 * scale,
+            height: metrics.pageHeight + 1.6 * scale
+        )
     }
 
     private func sheetSurface(showsPDFTag: Bool) -> some View {
-        HStack(spacing: 3) {
-            pageSurface(page: 8, corner: 1.5, badge: .bottomTrailing)
-                .frame(width: cellWidth, height: cellHeight)
-            pageSurface(page: 1, corner: 1.5, badge: .bottomTrailing)
-                .frame(width: cellWidth, height: cellHeight)
+        HStack(spacing: metrics.cellSpacing) {
+            pageSurface(page: 8, corner: 1.5 * scale)
+                .frame(width: metrics.cellWidth, height: metrics.cellHeight)
+            pageSurface(page: 1, corner: 1.5 * scale)
+                .frame(width: metrics.cellWidth, height: metrics.cellHeight)
         }
-        .padding(4.5)
-        .frame(width: sheetWidth, height: pageHeight)
+        .padding(metrics.sheetPadding)
+        .frame(width: metrics.sheetWidth, height: metrics.pageHeight)
         .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 3 * scale, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 3, style: .continuous)
-                .strokeBorder(Color.black.opacity(0.14), lineWidth: 0.7)
+            RoundedRectangle(cornerRadius: 3 * scale, style: .continuous)
+                .strokeBorder(Color.black.opacity(0.14), lineWidth: 0.7 * scale)
         }
         .overlay { foldLine }
         .overlay(alignment: .topTrailing) {
             if showsPDFTag {
                 pdfTag
-                    .offset(x: 2.5, y: -4)
+                    .offset(x: 2.5 * scale, y: -4 * scale)
             }
         }
-        .shadow(color: .black.opacity(0.12), radius: 1.6, y: 0.8)
+        .shadow(color: .black.opacity(0.12), radius: 1.6 * scale, y: 0.8 * scale)
     }
 
     private var foldLine: some View {
         GeometryReader { geometry in
             Path { path in
-                path.move(to: CGPoint(x: geometry.size.width / 2, y: 4))
-                path.addLine(to: CGPoint(x: geometry.size.width / 2, y: geometry.size.height - 4))
+                path.move(to: CGPoint(x: geometry.size.width / 2, y: 4 * scale))
+                path.addLine(
+                    to: CGPoint(
+                        x: geometry.size.width / 2,
+                        y: geometry.size.height - 4 * scale
+                    )
+                )
             }
             .stroke(
                 Color.black.opacity(0.2),
-                style: StrokeStyle(lineWidth: 0.7, dash: [2, 2])
+                style: StrokeStyle(lineWidth: 0.7 * scale, dash: [2 * scale, 2 * scale])
             )
         }
     }
 
     private var pdfTag: some View {
         Text("PDF")
-            .font(.system(size: 7, weight: .bold))
-            .tracking(0.3)
+            .font(.system(size: 7 * scale, weight: .bold))
+            .tracking(0.3 * scale)
             .foregroundStyle(.white)
-            .padding(.horizontal, 5)
-            .frame(height: 13)
-            .background(BookletMobileStyle.paperInk, in: RoundedRectangle(cornerRadius: 3.5))
+            .padding(.horizontal, 5 * scale)
+            .frame(height: 13 * scale)
+            .background(BookletMobileStyle.paperInk, in: RoundedRectangle(cornerRadius: 3.5 * scale))
     }
 
     // MARK: - Stage 3 · Duplex Printer
@@ -234,18 +242,18 @@ struct BookletWelcomeWorkflowView: View {
     private var printerStage: some View {
         ZStack(alignment: .bottom) {
             imposedSheets(showsPDFTag: false)
-                .offset(y: -8)
+                .offset(y: -8 * scale)
             printer
-                .frame(width: sheetWidth, height: 16)
+                .frame(width: metrics.sheetWidth, height: 16 * scale)
         }
-        .frame(height: artHeight, alignment: .bottom)
+        .frame(height: metrics.artHeight, alignment: .bottom)
     }
 
     private var printer: some View {
-        RoundedRectangle(cornerRadius: 2.5, style: .continuous)
+        RoundedRectangle(cornerRadius: 2.5 * scale, style: .continuous)
             .fill(deviceFill)
             .overlay {
-                RoundedRectangle(cornerRadius: 2.5, style: .continuous)
+                RoundedRectangle(cornerRadius: 2.5 * scale, style: .continuous)
                     .fill(
                         LinearGradient(
                             colors: [.white.opacity(0.1), .black.opacity(0.14)],
@@ -255,25 +263,25 @@ struct BookletWelcomeWorkflowView: View {
                     )
             }
             .overlay(alignment: .top) {
-                RoundedRectangle(cornerRadius: 1.5)
+                RoundedRectangle(cornerRadius: 1.5 * scale)
                     .fill(deviceSlot)
-                    .frame(height: 3)
-                    .padding(.horizontal, 8)
-                    .padding(.top, 3)
-                    .shadow(color: .black.opacity(0.25), radius: 0.5, y: 0.5)
+                    .frame(height: 3 * scale)
+                    .padding(.horizontal, 8 * scale)
+                    .padding(.top, 3 * scale)
+                    .shadow(color: .black.opacity(0.25), radius: 0.5 * scale, y: 0.5 * scale)
             }
             .overlay(alignment: .trailing) {
                 Circle()
                     .fill(BookletMobileStyle.accent)
-                    .frame(width: 2.2, height: 2.2)
-                    .padding(.trailing, 6)
-                    .padding(.top, 7)
+                    .frame(width: 2.2 * scale, height: 2.2 * scale)
+                    .padding(.trailing, 6 * scale)
+                    .padding(.top, 7 * scale)
             }
             .overlay {
-                RoundedRectangle(cornerRadius: 2.5, style: .continuous)
-                    .strokeBorder(deviceEdge, lineWidth: 0.6)
+                RoundedRectangle(cornerRadius: 2.5 * scale, style: .continuous)
+                    .strokeBorder(deviceEdge, lineWidth: 0.6 * scale)
             }
-            .shadow(color: .black.opacity(0.1), radius: 1, y: 0.5)
+            .shadow(color: .black.opacity(0.1), radius: 1 * scale, y: 0.5 * scale)
     }
 
     private var deviceFill: Color {
@@ -305,19 +313,16 @@ struct BookletWelcomeWorkflowView: View {
     private var finishedBooklet: some View {
         MiniFinishedBooklet(
             image: thumbnails.images[1],
-            pageWidth: pageWidth,
-            pageHeight: pageHeight
+            pageWidth: metrics.pageWidth,
+            pageHeight: metrics.pageHeight,
+            scale: scale
         )
-        .frame(height: artHeight)
+        .frame(height: metrics.artHeight)
     }
 
     // MARK: - Page Surface
 
-    private func pageSurface(
-        page: Int,
-        corner: CGFloat,
-        badge: Alignment?
-    ) -> some View {
+    private func pageSurface(page: Int, corner: CGFloat) -> some View {
         ZStack {
             Color.white
             if let image = thumbnails.images[page] {
@@ -329,15 +334,35 @@ struct BookletWelcomeWorkflowView: View {
         .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: corner, style: .continuous)
-                .strokeBorder(Color.black.opacity(0.16), lineWidth: 0.6)
+                .strokeBorder(Color.black.opacity(0.16), lineWidth: 0.6 * scale)
         }
-        .overlay(alignment: badge ?? .bottomTrailing) {
-            if let badge {
-                PageNumberChip(number: page)
-                    .padding(1.5)
-            }
+        .overlay(alignment: .bottomTrailing) {
+            PageNumberChip(number: page, scale: scale)
+                .padding(1.5 * scale)
         }
-        .shadow(color: .black.opacity(0.12), radius: 1.2, y: 0.6)
+        .shadow(color: .black.opacity(0.12), radius: 1.2 * scale, y: 0.6 * scale)
+    }
+
+    // MARK: - Metrics
+
+    /// 四步示意图的全部尺寸都从同一个比例尺推导，
+    /// 保证纸页比例和真实纸张一致。
+    private struct Metrics {
+        let scale: CGFloat
+
+        /// ≈ 0.25pt/mm × scale：A5 页高 52.5、A4 横向宽 74.25 起算。
+        var pageHeight: CGFloat { 52.5 * scale }
+        var pageWidth: CGFloat { pageHeight * DemoStoryStyle.pageAspectRatio }
+        var sheetWidth: CGFloat { pageHeight * 297 / 210 }
+        var sheetPadding: CGFloat { 4.5 * scale }
+        var cellSpacing: CGFloat { 3 * scale }
+        var cellWidth: CGFloat { (sheetWidth - sheetPadding * 2 - cellSpacing) / 2 }
+        var cellHeight: CGFloat { pageHeight - sheetPadding * 2 }
+
+        var artHeight: CGFloat { 62 * scale }
+        var fanStageWidth: CGFloat { 54 * scale }
+        var sheetStageWidth: CGFloat { 77 * scale }
+        var bookStageWidth: CGFloat { 54 * scale }
     }
 }
 
