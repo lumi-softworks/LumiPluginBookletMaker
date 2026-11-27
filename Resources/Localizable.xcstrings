@@ -5040,6 +5040,40 @@
         }
       }
     },
+    "Fold in half" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fold in half"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "对折"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "對摺"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "對摺"
+          }
+        },
+        "zh-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "對摺"
+          }
+        }
+      }
+    },
     "For example: 20, 50, 80" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8157,36 +8191,36 @@
         }
       }
     },
-    "Print both sides, flip on the long edge, then fold along the center." : {
+    "Print both sides, fold along the center, then staple the spine." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Print both sides, flip on the long edge, then fold along the center."
+            "value" : "Print both sides, fold along the center, then staple the spine."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "双面打印时沿长边翻转纸张，然后沿中线对折。"
+            "value" : "双面打印后沿中线对折，再沿书脊装订。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "雙面打印時沿長邊翻轉紙張，然後沿中線對折。"
+            "value" : "雙面列印後沿中線對摺，再沿書脊裝訂。"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "雙面打印時沿長邊翻轉紙張，然後沿中線對折。"
+            "value" : "雙面列印後沿中線對摺，再沿書脊裝訂。"
           }
         },
         "zh-TW" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "雙面打印時沿長邊翻轉紙張，然後沿中線對折。"
+            "value" : "雙面列印後沿中線對摺，再沿書脊裝訂。"
           }
         }
       }
@@ -10435,6 +10469,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "靜態"
+          }
+        }
+      }
+    },
+    "Staple" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Staple"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "装订"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "裝訂"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "裝訂"
+          }
+        },
+        "zh-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "裝訂"
           }
         }
       }

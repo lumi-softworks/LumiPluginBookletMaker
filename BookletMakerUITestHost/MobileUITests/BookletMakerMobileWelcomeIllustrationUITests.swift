@@ -39,10 +39,10 @@ final class BookletMakerMobileWelcomeIllustrationUITests: BookletMakerMobileUITe
         )
     }
 
-    /// 动画确实在跑：进入全屏演示 1.5 秒后画面发生变化。
+    /// 动画确实在跑：折叠中、折好、翻开封面这三帧内容各不相同。
     ///
-    /// 折叠动效的起始帧与 1.6 秒处（折叠角约 90°）帧内容不同；
-    /// 若 TimelineView 没有驱动，两张截图会完全一致。
+    /// 若 TimelineView 没有驱动，截图会完全一致；订书钉与跨页是最后
+    /// 两拍的画面，第三张截图落在大约 5 秒处（封面翻开、露出 2/7 跨页）。
     func testShowcaseRendersMovingFrames() {
         let open = element("welcome.bookletShowcase")
         XCTAssertTrue(open.waitForExistence(timeout: 10), app.debugDescription)
@@ -55,15 +55,27 @@ final class BookletMakerMobileWelcomeIllustrationUITests: BookletMakerMobileUITe
         Thread.sleep(forTimeInterval: 1.5)
         let midFold = XCUIScreen.main.screenshot()
         Thread.sleep(forTimeInterval: 1.1)
-        let second = XCUIScreen.main.screenshot()
+        let folded = XCUIScreen.main.screenshot()
+        Thread.sleep(forTimeInterval: 2.0)
+        let opened = XCUIScreen.main.screenshot()
 
         XCTAssertNotEqual(
             midFold.pngRepresentation,
-            second.pngRepresentation,
+            folded.pngRepresentation,
             "全屏演示的画面在持续时间内没有变化。"
         )
+        XCTAssertNotEqual(
+            folded.pngRepresentation,
+            opened.pngRepresentation,
+            "折好后的画面没有继续演进到翻开封面。"
+        )
 
-        for (name, shot) in [("showcase-folding", midFold), ("showcase-folded", second)] {
+        let shots = [
+            ("showcase-folding", midFold),
+            ("showcase-stapled", folded),
+            ("showcase-open", opened),
+        ]
+        for (name, shot) in shots {
             let attachment = XCTAttachment(image: shot.image)
             attachment.name = name
             attachment.lifetime = .keepAlways
