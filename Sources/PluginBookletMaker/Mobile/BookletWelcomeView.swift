@@ -98,11 +98,10 @@ struct BookletWelcomeView: View {
                         VStack(alignment: .leading, spacing: 13) {
                             cardHeader(tool: tool, title: title, subtitle: subtitle)
 
-                            if illustration == .split {
-                                splitIllustration
-                            } else {
-                                mergeIllustration
-                            }
+                            BookletFileToolIllustrationView(
+                                kind: illustration == .split ? .split : .merge,
+                                illustrationWidth: illustrationWidth
+                            )
                         }
                     }
                     .contentShape(Rectangle())
@@ -165,76 +164,6 @@ struct BookletWelcomeView: View {
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(.tertiary)
         }
-    }
-
-    private var splitIllustration: some View {
-        HStack(spacing: 16) {
-            pageSymbol(width: 30, height: 40)
-                .overlay {
-                    GeometryReader { geometry in
-                        Path { path in
-                            let y = geometry.size.height / 2
-                            path.move(to: CGPoint(x: 4, y: y))
-                            path.addLine(to: CGPoint(x: geometry.size.width - 4, y: y))
-                        }
-                        .stroke(
-                            BookletMobileStyle.accent.opacity(0.72),
-                            style: StrokeStyle(lineWidth: 1, dash: [3, 3])
-                        )
-                    }
-                }
-            illustrationArrow
-            HStack(spacing: 5) {
-                pageSymbol(width: 16, height: 32)
-                pageSymbol(width: 16, height: 32)
-                pageSymbol(width: 16, height: 32)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: 62)
-        .background(illustrationBackground, in: RoundedRectangle(cornerRadius: 14))
-        .accessibilityHidden(true)
-    }
-
-    private var mergeIllustration: some View {
-        HStack(spacing: 10) {
-            pageSymbol("A", width: 20, height: 28)
-            pageSymbol("B", width: 20, height: 28)
-            illustrationArrow
-            HStack(spacing: 0) {
-                pageSymbol(width: 17, height: 38)
-                pageSymbol(width: 17, height: 38)
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 5))
-            .overlay(RoundedRectangle(cornerRadius: 5).stroke(.black.opacity(0.12), lineWidth: 0.7))
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: 62)
-        .background(illustrationBackground, in: RoundedRectangle(cornerRadius: 14))
-        .accessibilityHidden(true)
-    }
-
-    private var illustrationBackground: Color {
-        Color.primary.opacity(0.035)
-    }
-
-    private var illustrationArrow: some View {
-        Image(systemName: "arrow.right")
-            .font(.system(size: 16, weight: .semibold))
-            .foregroundStyle(.tertiary)
-    }
-
-    private func pageSymbol(_ number: String? = nil, width: CGFloat, height: CGFloat) -> some View {
-        ZStack {
-            if let number {
-                Text(number)
-                    .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(BookletMobileStyle.paperInk)
-            }
-        }
-        .frame(width: width, height: height)
-        .background(.white, in: RoundedRectangle(cornerRadius: 4))
-        .overlay(RoundedRectangle(cornerRadius: 4).stroke(.black.opacity(0.12), lineWidth: 0.7))
     }
 
     private var privacyNotice: some View {

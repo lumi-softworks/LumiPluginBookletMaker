@@ -21,15 +21,11 @@ struct BookletWelcomeWorkflowView: View {
 
     @StateObject private var thumbnails = BookletDemoPageThumbnails.shared
 
-    /// scale = 1 时四个舞台宽度之和（54 + 77 + 77 + 54）。
-    private let baseRowWidth: CGFloat = 262
     private let arrowWidth: CGFloat = 10
-    private let maxScale: CGFloat = 1.6
 
     /// 统一比例尺 ≈ 0.25pt/mm：A5 页高 52.5，随卡片宽度放大。
     private var scale: CGFloat {
-        let fit = (illustrationWidth - arrowWidth * 3) / baseRowWidth
-        return min(max(fit, 0.85), maxScale)
+        BookletWelcomeIllustrationMetrics.scale(for: illustrationWidth)
     }
 
     private var metrics: Metrics { Metrics(scale: scale) }
