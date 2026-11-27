@@ -9,6 +9,8 @@ struct BookletWelcomeView: View {
     @ObservedObject var feature: BookletMakerMobileFeature
     let onChooseTool: (BookletMakerMobileFeature.Tool) -> Void
 
+    @State private var showsBookletAnimation = false
+
     var body: some View {
         GeometryReader { geometry in
             ScrollView {
@@ -72,71 +74,79 @@ struct BookletWelcomeView: View {
         subtitle: String,
         illustration: Illustration
     ) -> some View {
-        Button { onChooseTool(tool) } label: {
-            BookletMobileStyle.cardBackground {
-                VStack(alignment: .leading, spacing: 13) {
-                    HStack(spacing: 12) {
-                        Image(systemName: tool.systemImage)
-                            .font(.system(size: 21, weight: .semibold))
-                            .foregroundStyle(BookletMobileStyle.accent)
-                            .frame(width: 46, height: 46)
-                            .background(BookletMobileStyle.softAccent, in: RoundedRectangle(cornerRadius: 12))
+        Group {
+            if illustration == .booklet {
+                bookletCard(tool: tool, title: title, subtitle: subtitle)
+            } else {
+                Button { onChooseTool(tool) } label: {
+                    BookletMobileStyle.cardBackground {
+                        VStack(alignment: .leading, spacing: 13) {
+                            cardHeader(tool: tool, title: title, subtitle: subtitle)
 
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(title)
-                                .font(.headline)
-                                .foregroundStyle(.primary)
-                            Text(subtitle)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
+                            if illustration == .split {
+                                splitIllustration
+                            } else {
+                                mergeIllustration
+                            }
                         }
-                        Spacer(minLength: 4)
-                        Image(systemName: "chevron.right")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(.tertiary)
                     }
-
-                    switch illustration {
-                    case .booklet:
-                        bookletIllustration
-                    case .split:
-                        splitIllustration
-                    case .merge:
-                        mergeIllustration
-                    }
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("welcome.\(tool.rawValue)Tool")
             }
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("welcome.\(tool.rawValue)Tool")
     }
 
-    private var bookletIllustration: some View {
-        HStack(spacing: 14) {
-            HStack(spacing: 4) {
-                ForEach(1...4, id: \.self) { number in
-                    pageSymbol("\(number)", width: 19, height: 26)
+    /// 小册子卡片自带「动效 / 静态」切换按钮。切换按钮必须是卡片主体
+    /// 的兄弟节点，否则会被整卡点击吞掉；因此标题行与示意图各自响应点击。
+    private func bookletCard(
+        tool: BookletMakerMobileFeature.Tool,
+        title: String,
+        subtitle: String
+    ) -> some View {
+        BookletMobileStyle.cardBackground {
+            VStack(alignment: .leading, spacing: 13) {
+                Button { onChooseTool(tool) } label: {
+                    cardHeader(tool: tool, title: title, subtitle: subtitle)
                 }
-            }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("welcome.\(tool.rawValue)Tool")
 
-            illustrationArrow
-
-            HStack(spacing: 0) {
-                pageSymbol("4", width: 29, height: 34)
-                Rectangle()
-                    .fill(Color.secondary.opacity(0.28))
-                    .frame(width: 1, height: 34)
-                pageSymbol("1", width: 29, height: 34)
+                BookletWelcomeWorkflowView(
+                    isAnimating: $showsBookletAnimation,
+                    onOpen: { onChooseTool(tool) }
+                )
             }
-            .clipShape(RoundedRectangle(cornerRadius: 5))
-            .overlay(RoundedRectangle(cornerRadius: 5).stroke(.black.opacity(0.12), lineWidth: 0.7))
         }
-        .frame(maxWidth: .infinity)
-        .frame(height: 62)
-        .background(illustrationBackground, in: RoundedRectangle(cornerRadius: 14))
-        .accessibilityHidden(true)
+    }
+
+    private func cardHeader(
+        tool: BookletMakerMobileFeature.Tool,
+        title: String,
+        subtitle: String
+    ) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: tool.systemImage)
+                .font(.system(size: 21, weight: .semibold))
+                .foregroundStyle(BookletMobileStyle.accent)
+                .frame(width: 46, height: 46)
+                .background(BookletMobileStyle.softAccent, in: RoundedRectangle(cornerRadius: 12))
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 4)
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.tertiary)
+        }
     }
 
     private var splitIllustration: some View {

@@ -87,6 +87,9 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.coffic.bookletmaker.mobile.testhost
         GENERATE_INFOPLIST_FILE: YES
+        # 没有启动屏声明时，系统会以旧机型兼容尺寸（320×480）运行，
+        # 宿主会被缩放成居中窗口——界面验证与 UI 测试都会失真。
+        INFOPLIST_KEY_UILaunchScreen_Generation: 'YES'
         # 模拟器不需要签名，避免无证书环境下无法构建。
         CODE_SIGNING_REQUIRED: 'NO'
         CODE_SIGNING_ALLOWED: 'NO'
